@@ -4,7 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
 import React from "react";
-import { Text } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 
 type Node = {
   id: string;
@@ -21,7 +21,17 @@ const nodes: Record<string, Node> = {
   child3: { id: "child3", position: [2, -2, 0], children: [] },
 };
 
-function SphereNode({ id, position }: { id: string; position: [number, number, number] }) {
+function RenderNode({
+  id,
+  position,
+  label,
+  type,
+}: {
+  id: string;
+  position: [number, number, number];
+  label?: string;
+  type: "mother" | "father";
+}) {
   if (id === "branch") {
     return null; // Do not render the branch node
   }
@@ -29,44 +39,19 @@ function SphereNode({ id, position }: { id: string; position: [number, number, n
   return (
     <>
       <mesh position={position}>
-        <sphereGeometry args={[0.4, 16, 16]} />
-        <meshStandardMaterial color="#FF0000" /> {/* Red spheres */}
+        {type === "mother" ? (
+          <sphereGeometry args={[0.4, 16, 16]} /> // Sphere for mothers
+        ) : (
+          <coneGeometry args={[0.4, 0.8, 4]} /> // Pyramid for fathers
+        )}
+        <meshStandardMaterial color="#FF0000" /> {/* Red for all nodes */}
       </mesh>
-      {id === "root2" && (
-        <Text
-          position={[position[0], position[1] - 0.6, position[2]]}
-          fontSize={0.2}
-          color="#FFFFFF"
-        >
-          GGGG Grampa
-        </Text>
-      )}
-      {id === "child1" && (
-        <Text
-          position={[position[0], position[1] - 0.6, position[2]]}
-          fontSize={0.2}
-          color="#FFFFFF"
-        >
-          GGG Grandma
-        </Text>
-      )}
-      {id === "child2" && (
-        <Text
-          position={[position[0], position[1] - 0.6, position[2]]}
-          fontSize={0.2}
-          color="#FFFFFF"
-        >
-          GGG Uncle
-        </Text>
-      )}
-      {id === "child3" && (
-        <Text
-          position={[position[0], position[1] - 0.6, position[2]]}
-          fontSize={0.2}
-          color="#FFFFFF"
-        >
-          GGG Uncle
-        </Text>
+      {label && (
+        <Html position={[position[0], position[1] - 0.6, position[2]]} center>
+          <div style={{ color: "white", fontSize: "12px", textAlign: "center" }}>
+            {label}
+          </div>
+        </Html>
       )}
     </>
   );
@@ -83,7 +68,7 @@ function Connector({ from, to }: { from: [number, number, number]; to: [number, 
 
   return (
     <mesh position={mid} quaternion={orientation}>
-      <cylinderGeometry args={[0.05, 0.05, length, 8]} />
+      <cylinderGeometry args={[0.03, 0.03, length, 8]} />
       <meshStandardMaterial color="#AAAAAA" />
     </mesh>
   );
@@ -91,45 +76,118 @@ function Connector({ from, to }: { from: [number, number, number]; to: [number, 
 
 export default function TreeScene() {
   const tree = useMemo(() => {
-    const spheres = Object.values(nodes).map((node) => (
-      <SphereNode key={node.id} id={node.id} position={node.position} />
-    ));
+    const spheres = Object.entries(nodes).map(([id, node]) => {
+      let label: string | undefined;
+      let type: "mother" | "father" = "mother"; // Default to mother
+
+      // Define labels and types for specific nodes
+      if (id === "root2") {
+        label = "GGGG Grandfather";
+        type = "father";
+      }
+      if (id === "child1") {
+        label = "GGG Grandmother";
+      }
+      if (id === "child2") {
+        label = "GGG Granduncle H";
+        type = "father";
+      }
+      if (id === "child3") {
+        label = "GGG Granduncle N";
+        type = "father";
+      }
+
+      return <RenderNode key={id} id={id} position={node.position} label={label} type={type} />;
+    });
 
     const connectors: JSX.Element[] = [];
 
-    // Add a horizontal connector between root1 and root2
+    // Adjust the vertical position of the "equals sign" connector
+    const parentConnectorY = nodes.root1.position[1]; // Align with the parent nodes' vertical position
+    const gapBetweenLines = 0.2; // Vertical gap between the two lines
+    const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2; // Center between root1 and root2
+
+    // Top horizontal line
     connectors.push(
       <Connector
-        key="root1-root2"
-        from={nodes.root1.position}
-        to={nodes.root2.position}
+        key="parent-connector-top"
+        from={[centerX - 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // Start slightly left of center
+        to={[centerX + 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // End slightly right of center
       />
     );
 
-    // Add a vertical connector from the midpoint of root1-root2 to the branch node
-    const horizontalMidpoint = [
-      (nodes.root1.position[0] + nodes.root2.position[0]) / 2,
-      (nodes.root1.position[1] + nodes.root2.position[1]) / 2,
-      (nodes.root1.position[2] + nodes.root2.position[2]) / 2,
-    ] as [number, number, number];
-
+    // Bottom horizontal line
     connectors.push(
       <Connector
-        key="horizontal-to-branch"
-        from={horizontalMidpoint}
+        key="parent-connector-bottom"
+        from={[centerX - 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // Start slightly left of center
+        to={[centerX + 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // End slightly right of center
+      />
+    );
+
+    // Add a vertical connector from the midpoint of the bottom line to the branch node
+    const verticalConnectorStart: [number, number, number] = [
+      centerX,
+      (parentConnectorY - gapBetweenLines / 2) - 0.2,
+      0
+    ]; // Slight gap below the bottom line
+    connectors.push(
+      <Connector
+        key="vertical-to-branch"
+        from={verticalConnectorStart}
         to={nodes.branch.position}
       />
     );
 
     // Add connectors from the branch node to each child node
     nodes.branch.children.forEach((childId) => {
-      connectors.push(
-        <Connector
-          key={`branch-to-${childId}`}
-          from={nodes.branch.position}
-          to={nodes[childId].position}
-        />
-      );
+      const childPosition = nodes[childId].position;
+
+      // For siblings off the center line, create right-angle connectors
+      if (childId === "child1" || childId === "child3") {
+        // Lower the junction point closer to the child node
+        const loweredBranchY = nodes.branch.position[1] - 0.35; // Adjust branch point downward
+        const junction = [childPosition[0], loweredBranchY, childPosition[2]] as [
+          number,
+          number,
+          number
+        ];
+
+        // Add the first segment from the branch to the junction
+        connectors.push(
+          <Connector
+            key={`branch-to-${childId}-junction`}
+            from={[nodes.branch.position[0], loweredBranchY, nodes.branch.position[2]]}
+            to={junction}
+          />
+        );
+
+        // Add the second segment from the junction to the child node
+        connectors.push(
+          <Connector
+            key={`junction-to-${childId}`}
+            from={junction}
+            to={childPosition}
+          />
+        );
+
+        // Add a small sphere at the junction point
+        connectors.push(
+          <mesh key={`junction-sphere-${childId}`} position={junction}>
+            <sphereGeometry args={[0.03, 16, 16]} /> {/* Same radius as the cylinders */}
+            <meshStandardMaterial color="#AAAAAA" /> {/* Same color as the cylinders */}
+          </mesh>
+        );
+      } else {
+        // For the center child node, use a straight connector
+        connectors.push(
+          <Connector
+            key={`branch-to-${childId}`}
+            from={nodes.branch.position}
+            to={childPosition}
+          />
+        );
+      }
     });
 
     return [...spheres, ...connectors];
