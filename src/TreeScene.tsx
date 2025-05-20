@@ -11,43 +11,53 @@ enum NodeShape {
   Cube = "cube",
 }
 
+type Person = {
+  label?: string; // Optional label
+  type: NodeShape;
+};
+
+// Create a collection of Person objects
+const people: Person[] = [
+  { label: undefined, type: NodeShape.Sphere }, // root1
+  { label: "GGGG Grandfather", type: NodeShape.Cube }, // root2
+  { label: "GGG Grandmother", type: NodeShape.Sphere }, // child1
+  { label: "GGG Granduncle H", type: NodeShape.Cube }, // child2
+  { label: "GGG Granduncle N", type: NodeShape.Cube }, // child3
+];
+
 type Node = {
   id: string;
   position: [number, number, number];
   children: string[];
+  person?: Person; // Optional reference to a Person
 };
 
+// Update the nodes to reference the Person collection
 const nodes: Record<string, Node> = {
-  root1: { id: "root1", position: [-1, 0, 0], children: [] },
-  root2: { id: "root2", position: [1, 0, 0], children: [] },
+  root1: { id: "root1", position: [-1, 0, 0], children: [], person: people[0] },
+  root2: { id: "root2", position: [1, 0, 0], children: [], person: people[1] },
   branch: { id: "branch", position: [0, -1, 0], children: ["child1", "child2", "child3"] },
-  child1: { id: "child1", position: [-2, -2, 0], children: [] },
-  child2: { id: "child2", position: [0, -2, 0], children: [] },
-  child3: { id: "child3", position: [2, -2, 0], children: [] },
+  child1: { id: "child1", position: [-2, -2, 0], children: [], person: people[2] },
+  child2: { id: "child2", position: [0, -2, 0], children: [], person: people[3] },
+  child3: { id: "child3", position: [2, -2, 0], children: [], person: people[4] },
 };
 
 function RenderNode({
-  id,
   position,
   label,
   type,
 }: {
-  id: string;
   position: [number, number, number];
   label?: string;
   type: NodeShape;
 }) {
-  if (id === "branch") {
-    return null; // Do not render the branch node
-  }
-
   return (
     <>
       <mesh position={position}>
         {type === NodeShape.Sphere ? (
-          <sphereGeometry args={[0.4, 16, 16]} /> // Sphere for mothers
+          <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
-          <boxGeometry args={[0.6, 0.6, 0.6]} /> // Cube for fathers
+          <boxGeometry args={[0.6, 0.6, 0.6]} />
         )}
         <meshStandardMaterial
           color="#FF0000" // Red for all nodes
@@ -83,62 +93,66 @@ function Connector({ from, to }: { from: [number, number, number]; to: [number, 
   );
 }
 
+function renderParentConnector(
+  parent1Position: [number, number, number],
+  parent2Position: [number, number, number]
+): JSX.Element[] {
+  const connectors: JSX.Element[] = [];
+  const parentConnectorY = parent1Position[1]; // Align with the parent nodes' vertical position
+  const gapBetweenLines = 0.2; // Vertical gap between the two lines
+  const centerX = (parent1Position[0] + parent2Position[0]) / 2; // Center between parent1 and parent2
+
+  // Top horizontal line
+  connectors.push(
+    <Connector
+      key="parent-connector-top"
+      from={[centerX - 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // Start slightly left of center
+      to={[centerX + 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // End slightly right of center
+    />
+  );
+
+  // Bottom horizontal line
+  connectors.push(
+    <Connector
+      key="parent-connector-bottom"
+      from={[centerX - 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // Start slightly left of center
+      to={[centerX + 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // End slightly right of center
+    />
+  );
+
+  return connectors;
+}
+
 export default function TreeScene() {
   const tree = useMemo(() => {
-    const spheres = Object.entries(nodes).map(([id, node]) => {
-      let label: string | undefined;
-      let type: NodeShape = NodeShape.Sphere; // Default to mother
+    const spheres = Object.entries(nodes)
+      .filter(([id]) => id !== "branch") // Exclude the branch node
+      .map(([id, node]) => {
+        const person = node.person;
 
-      // Define labels and types for specific nodes
-      if (id === "root2") {
-        label = "GGGG Grandfather";
-        type = NodeShape.Cube;
-      }
-      if (id === "child1") {
-        label = "GGG Grandmother";
-      }
-      if (id === "child2") {
-        label = "GGG Granduncle H";
-        type = NodeShape.Cube;
-      }
-      if (id === "child3") {
-        label = "GGG Granduncle N";
-        type = NodeShape.Cube;
-      }
-
-      return <RenderNode key={id} id={id} position={node.position} label={label} type={type} />;
-    });
-
+        return (
+          <RenderNode
+            key={id}
+            position={node.position}
+            label={person?.label} // Use the label from the Person object
+            type={person?.type ?? NodeShape.Sphere} // Default to Sphere if no Person
+          />
+        );
+      });
     const connectors: JSX.Element[] = [];
 
-    // Adjust the vertical position of the "equals sign" connector
-    const parentConnectorY = nodes.root1.position[1]; // Align with the parent nodes' vertical position
-    const gapBetweenLines = 0.2; // Vertical gap between the two lines
-    const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2; // Center between root1 and root2
-
-    // Top horizontal line
     connectors.push(
-      <Connector
-        key="parent-connector-top"
-        from={[centerX - 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // Start slightly left of center
-        to={[centerX + 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // End slightly right of center
-      />
-    );
-
-    // Bottom horizontal line
-    connectors.push(
-      <Connector
-        key="parent-connector-bottom"
-        from={[centerX - 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // Start slightly left of center
-        to={[centerX + 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // End slightly right of center
-      />
+      ...renderParentConnector(nodes.root1.position, nodes.root2.position)
     );
 
     // Add a vertical connector from the midpoint of the bottom line to the branch node
+    const parentConnectorY = nodes.root1.position[1];
+    const gapBetweenLines = 0.2;
+    const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2;
     const verticalConnectorStart: [number, number, number] = [
       centerX,
-      (parentConnectorY - gapBetweenLines / 2) - 0.2,
-      0
+      parentConnectorY - gapBetweenLines / 2 - 0.2,
+      0,
     ]; // Slight gap below the bottom line
     connectors.push(
       <Connector
