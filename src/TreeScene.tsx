@@ -66,8 +66,8 @@ function RenderNode({
         />
       </mesh>
       {label && (
-        <Html position={[position[0], position[1] - 0.6, position[2]]} center>
-          <div style={{ color: "white", fontSize: "12px", textAlign: "center" }}>
+        <Html position={[position[0], position[1] - 0.5, position[2]]} center>
+          <div style={{ color: "white", fontSize: "16px", textAlign: "center" }}>
             {label}
           </div>
         </Html>
