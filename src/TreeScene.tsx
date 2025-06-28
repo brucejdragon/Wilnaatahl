@@ -1,45 +1,14 @@
 // TreeScene.tsx
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Html } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
 import React from "react";
-import { Html } from "@react-three/drei";
+import { Node } from "./viewmodel/FamilyTreeViewModel";
+import { NodeShape } from "./model/Person";
 
-enum NodeShape {
-  Sphere = "sphere",
-  Cube = "cube",
-}
-
-type Person = {
-  label?: string; // Optional label
-  type: NodeShape;
-};
-
-// Create a collection of Person objects
-const people: Person[] = [
-  { label: undefined, type: NodeShape.Sphere }, // root1
-  { label: "GGGG Grandfather", type: NodeShape.Cube }, // root2
-  { label: "GGG Grandmother", type: NodeShape.Sphere }, // child1
-  { label: "GGG Granduncle H", type: NodeShape.Cube }, // child2
-  { label: "GGG Granduncle N", type: NodeShape.Cube }, // child3
-];
-
-type Node = {
-  id: string;
-  position: [number, number, number];
-  children: string[];
-  person?: Person; // Optional reference to a Person
-};
-
-// Update the nodes to reference the Person collection
-const nodes: Record<string, Node> = {
-  root1: { id: "root1", position: [-1, 0, 0], children: [], person: people[0] },
-  root2: { id: "root2", position: [1, 0, 0], children: [], person: people[1] },
-  branch: { id: "branch", position: [0, -1, 0], children: ["child1", "child2", "child3"] },
-  child1: { id: "child1", position: [-2, -2, 0], children: [], person: people[2] },
-  child2: { id: "child2", position: [0, -2, 0], children: [], person: people[3] },
-  child3: { id: "child3", position: [2, -2, 0], children: [], person: people[4] },
+type TreeSceneProps = {
+  nodes: Record<string, Node>;
 };
 
 function RenderNode({
@@ -123,7 +92,7 @@ function renderParentConnector(
   return connectors;
 }
 
-export default function TreeScene() {
+export default function TreeScene({ nodes }: TreeSceneProps) {
   const tree = useMemo(() => {
     const spheres = Object.entries(nodes)
       .filter(([id]) => id !== "branch") // Exclude the branch node
@@ -214,7 +183,7 @@ export default function TreeScene() {
     });
 
     return [...spheres, ...connectors];
-  }, []);
+  }, [nodes]);
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
