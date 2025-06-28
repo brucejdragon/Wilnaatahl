@@ -23,12 +23,14 @@ These instructions assume **Git** and **Visual Studio Code** are already install
    ```powershell
    nvm install 23.11.0
    nvm use 23.11.0
+   ```
 
 3. Verify the installation:
 
    ```powershell
    node -v    # Should return v23.11.0
    npm -v     # Should return a recent npm version (e.g. 10.x)
+   ```
 
 ### ✅ 2. Install Project Dependencies
 
@@ -36,6 +38,7 @@ Navigate to the root of the project directory and run:
 
    ```powershell
    npm install
+   ```
 
 This installs all dependencies listed in `package.json`, including React, Three.js, and Vite.
 
@@ -45,6 +48,7 @@ If you want to serve the `dist` folder (after building) with a static server:
 
    ```powershell
    npm install -g serve
+   ```
 
 This will start a local static server, typically accessible at: http://localhost:3000
 
