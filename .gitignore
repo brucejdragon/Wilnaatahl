@@ -38,12 +38,37 @@ bower_components
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
+# F#/Fable typical ignores
+bin/
+obj/
+.fable/
+.ionide/
+.fsac/
+*.fsproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Paket dependency manager
+.paket/
+paket-files/
+
+# FAKE build tool
+.fake/
+
+# VS Code workspace settings
+.vscode/
+
 # Dependency directories
 node_modules/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
+
+# Exclude generated Fable output
+src/generated/
 
 # TypeScript cache
 *.tsbuildinfo

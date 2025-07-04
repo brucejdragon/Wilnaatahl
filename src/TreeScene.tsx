@@ -4,11 +4,12 @@ import { OrbitControls, Html } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
 import React from "react";
-import { Node } from "./viewmodel/FamilyTreeViewModel";
-import { NodeShape } from "./model/Person";
+import { Node$ } from "./generated/ViewModel";
+import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
+import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 
 type TreeSceneProps = {
-  nodes: Record<string, Node>;
+  nodes: Record<string, Node$>;
 };
 
 function RenderNode({
@@ -18,12 +19,12 @@ function RenderNode({
 }: {
   position: [number, number, number];
   label?: string;
-  type: NodeShape;
+  type: NodeShape_$union;
 }) {
   return (
     <>
       <mesh position={position}>
-        {type === NodeShape.Sphere ? (
+        {type.name === "Sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
           <boxGeometry args={[0.6, 0.6, 0.6]} />
@@ -97,14 +98,14 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     const spheres = Object.entries(nodes)
       .filter(([id]) => id !== "branch") // Exclude the branch node
       .map(([id, node]) => {
-        const person = node.person;
+        const person = defaultArg(node.person, undefined);
 
         return (
           <RenderNode
             key={id}
             position={node.position}
-            label={person?.label} // Use the label from the Person object
-            type={person?.type ?? NodeShape.Sphere} // Default to Sphere if no Person
+            label={defaultArg(person?.label, undefined)} // Use the label from the Person object
+            type={person?.shape ?? NodeShape_Sphere()} // Default to Sphere if no Person
           />
         );
       });
@@ -132,7 +133,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     );
 
     // Add connectors from the branch node to each child node
-    nodes.branch.children.forEach((childId) => {
+    for (var childId of nodes.branch.children) {
       const childPosition = nodes[childId].position;
 
       // For siblings off the center line, create right-angle connectors
@@ -180,7 +181,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
           />
         );
       }
-    });
+    };
 
     return [...spheres, ...connectors];
   }, [nodes]);

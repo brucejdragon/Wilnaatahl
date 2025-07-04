@@ -20,35 +20,68 @@ These instructions assume **Git** and **Visual Studio Code** are already install
 
 2. Open a new PowerShell window, then install and use a stable Node.js version:
 
-   ```powershell
-   nvm install 23.11.0
-   nvm use 23.11.0
-   ```
+```powershell
+nvm install 23.11.0
+nvm use 23.11.0
+```
 
 3. Verify the installation:
 
-   ```powershell
-   node -v    # Should return v23.11.0
-   npm -v     # Should return a recent npm version (e.g. 10.x)
-   ```
+```powershell
+node -v    # Should return v23.11.0
+npm -v     # Should return a recent npm version (e.g. 10.x)
+```
 
-### ✅ 2. Install Project Dependencies
+### ✅ 2. Install the .NET SDK
+
+> Required for building F# code and running Fable.
+
+Download and install the latest .NET SDK (version 9.0 or newer recommended):  
+👉 https://dotnet.microsoft.com/download
+
+Verify installation:
+
+```powershell
+dotnet --version   # Should return 9.0.x or newer
+```
+
+### ✅ 3. Install Fable as a .NET local tool
+
+From the project root, run:
+
+```powershell
+dotnet tool restore
+```
+
+If you need to install Fable locally (first time setup):
+
+```powershell
+dotnet tool install fable --local
+```
+
+### ✅ 4. Install Project Dependencies
 
 Navigate to the root of the project directory and run:
 
-   ```powershell
-   npm install
-   ```
+```powershell
+npm install
+```
 
 This installs all dependencies listed in `package.json`, including React, Three.js, and Vite.
 
-### ✅ 3. (Optional) Install `serve` to Preview Production Builds
+#### Install Node.js type definitions (required for build)
+
+```powershell
+npm install --save-dev @types/node
+```
+
+### ✅ 5. Install `serve` to Preview Production Builds
 
 If you want to serve the `dist` folder (after building) with a static server:
 
-   ```powershell
-   npm install -g serve
-   ```
+```powershell
+npm install -g serve
+```
 
 This will start a local static server, typically accessible at: http://localhost:3000
 
