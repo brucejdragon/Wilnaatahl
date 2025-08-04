@@ -7,6 +7,11 @@ import React, { useState } from "react";
 import { Node$ } from "./generated/ViewModel";
 import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
+import { State, State_Update, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag } from "./generated/ViewModel";
+import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
+import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
+import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
+import { value as optionValue } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 
 type TreeSceneProps = {
   nodes: Record<string, Node$>;
@@ -18,17 +23,34 @@ function RenderNode({
   type,
   isSelected = false,
   onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerOut,
 }: {
   position: [number, number, number];
   label?: string;
   type: NodeShape_$union;
   isSelected?: boolean;
   onClick?: () => void;
+  onPointerDown?: (e: any) => void;
+  onPointerMove?: (e: any) => void;
+  onPointerUp?: (e: any) => void;
+  onPointerOut?: (e: any) => void;
 }) {
   const SelectedNodeColour = "#8B4000"; // Deep, red copper
   return (
     <>
-      <mesh position={position} onClick={onClick} castShadow receiveShadow>
+      <mesh
+        position={position}
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerOut={onPointerOut}
+        castShadow
+        receiveShadow
+      >
         {type.name === "Sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
@@ -101,21 +123,67 @@ function renderParentConnector(
 }
 
 export default function TreeScene({ nodes }: TreeSceneProps) {
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  // Convert nodes prop to F# State for reducer init
+  const initialState = React.useMemo(() => {
+    // Convert JS object to F# Map
+    const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
+    return new State(fsharpMap, undefined, undefined);
+  }, [nodes]);
+
+  const [state, dispatch] = React.useReducer(State_Update, initialState);
+
+  // Helper to get pointer position in 3D
+  const getPointerPos = (e: any) => [e.point.x, e.point.y, e.point.z] as [number, number, number];
+
+  // Track which node is being dragged (by id)
+  const draggingNodeId = state.drag ? optionValue(state.drag).nodeId : null;
+
+  // Only allow drag for selected node
+  const handlePointerDown = (id: string) => (e: any) => {
+    if (state.selectedNodeId === id) {
+      const [x, y, z] = getPointerPos(e);
+      dispatch(Msg_StartDrag(id, x, y, z));
+      e.stopPropagation();
+    }
+  };
+  const handlePointerMove = (id: string) => (e: any) => {
+    if (draggingNodeId === id && e.point) {
+      const [x, y, z] = getPointerPos(e);
+      dispatch(Msg_DragTo(x, y, z));
+      e.stopPropagation();
+    }
+  };
+  const handlePointerUp = (id: string) => (e: any) => {
+    if (draggingNodeId === id) {
+      dispatch(Msg_EndDrag());
+      e.stopPropagation();
+    }
+  };
+  const handlePointerOut = (id: string) => (e: any) => {
+    if (draggingNodeId === id) {
+      dispatch(Msg_EndDrag());
+    }
+  };
 
   const tree = useMemo(() => {
     const spheres = Object.entries(nodes)
       .filter(([id]) => id !== "branch") // Exclude the branch node
       .map(([id, node]) => {
         const person = defaultArg(node.person, undefined);
+        // Always use position from reducer state
+        const nodeInState = state.nodes.get(id);
         return (
           <RenderNode
             key={id}
-            position={node.position}
+            position={nodeInState ? nodeInState.position : node.position}
             label={defaultArg(person?.label, undefined)} // Use the label from the Person object
             type={person?.shape ?? NodeShape_Sphere()} // Default to Sphere if no Person
-            isSelected={selectedNode === id}
-            onClick={() => setSelectedNode(id)}
+            isSelected={state.selectedNodeId === id}
+            onClick={() => dispatch(Msg_SelectNode(id))}
+            onPointerDown={handlePointerDown(id)}
+            onPointerMove={handlePointerMove(id)}
+            onPointerUp={handlePointerUp(id)}
+            onPointerOut={handlePointerOut(id)}
           />
         );
       });
@@ -194,21 +262,18 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     };
 
     return [...spheres, ...connectors];
-  }, [nodes, selectedNode]);
+  }, [nodes, state.selectedNodeId, state.nodes, draggingNodeId]);
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
       <Canvas camera={{ position: [0, 0, 6], fov: 50 }} shadows>
         {/* Ambient light for general illumination */}
         <ambientLight intensity={0.7} />
-
         {/* Directional light for stronger highlights and shadows */}
         <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-
         {/* Additional point light for more dynamic lighting */}
         <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-
-        <OrbitControls />
+        <OrbitControls enabled={!state.drag} />
         <group position={[0, 1, 0]}>
           {tree}
         </group>
