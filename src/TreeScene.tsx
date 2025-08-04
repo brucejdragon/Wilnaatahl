@@ -3,7 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
-import React from "react";
+import React, { useState } from "react";
 import { Node$ } from "./generated/ViewModel";
 import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
@@ -16,28 +16,35 @@ function RenderNode({
   position,
   label,
   type,
+  isSelected = false,
+  onClick,
 }: {
   position: [number, number, number];
   label?: string;
   type: NodeShape_$union;
+  isSelected?: boolean;
+  onClick?: () => void;
 }) {
+  const SelectedNodeColour = "#8B4000"; // Deep, red copper
   return (
     <>
-      <mesh position={position}>
+      <mesh position={position} onClick={onClick} castShadow receiveShadow>
         {type.name === "Sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
           <boxGeometry args={[0.6, 0.6, 0.6]} />
         )}
         <meshStandardMaterial
-          color="#FF0000" // Red for all nodes
+          color={isSelected ? SelectedNodeColour : "#FF0000"} // Deep copper if selected, red otherwise
           metalness={0.3} // Slight metallic effect
           roughness={0.3} // Moderate roughness for better light scattering
+          emissive={isSelected ? SelectedNodeColour : undefined}
+          emissiveIntensity={isSelected ? 0.8 : 0}
         />
       </mesh>
       {label && (
         <Html position={[position[0], position[1] - 0.5, position[2]]} center>
-          <div style={{ color: "white", fontSize: "16px", textAlign: "center" }}>
+          <div style={{ color: "white", fontSize: "16px", textAlign: "center", pointerEvents: "none" }}>
             {label}
           </div>
         </Html>
@@ -94,18 +101,21 @@ function renderParentConnector(
 }
 
 export default function TreeScene({ nodes }: TreeSceneProps) {
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+
   const tree = useMemo(() => {
     const spheres = Object.entries(nodes)
       .filter(([id]) => id !== "branch") // Exclude the branch node
       .map(([id, node]) => {
         const person = defaultArg(node.person, undefined);
-
         return (
           <RenderNode
             key={id}
             position={node.position}
             label={defaultArg(person?.label, undefined)} // Use the label from the Person object
             type={person?.shape ?? NodeShape_Sphere()} // Default to Sphere if no Person
+            isSelected={selectedNode === id}
+            onClick={() => setSelectedNode(id)}
           />
         );
       });
@@ -184,7 +194,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     };
 
     return [...spheres, ...connectors];
-  }, [nodes]);
+  }, [nodes, selectedNode]);
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
