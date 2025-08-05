@@ -34,7 +34,13 @@ with
     static member Update state msg =
         match msg with
         | SelectNode nodeId ->
-            { state with selectedNodeId = Some nodeId; drag = None }
+            match state.selectedNodeId with
+            | Some selected when selected = nodeId ->
+                // De-select currently selected node
+                { state with selectedNodeId = None; drag = None }
+            | _ ->
+                // Select new node, either for the first time or replacing previous selection
+                { state with selectedNodeId = Some nodeId; drag = None }
         | StartDrag (nodeId, px, py, pz) ->
             match Map.tryFind nodeId state.nodes with
             | Some node ->
