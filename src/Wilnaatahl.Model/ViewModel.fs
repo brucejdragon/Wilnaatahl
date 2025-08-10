@@ -9,9 +9,19 @@ type Node =
       children: string list
       person: Person option }
 
-type DragState =
+type DragStart =
     { nodeId: string
+      position: float * float * float // Position of the node at drag start
       offset: float * float * float } // Offset from node position to pointer at drag start
+
+type DragState =
+    // Represents the time between pointer down and actual start of drag, to avoid spurious clicks.
+    | Tentative of DragStart
+    // Represents an active drag operation based on pointer movement beyond a threshold.
+    | Dragging of DragStart
+    // Captures the state between pointer up and the final click, which should be ignored.
+    | DragEnding
+    | NotDragging
 
 type Msg =
     | SelectNode of string
@@ -22,78 +32,123 @@ type Msg =
 type State =
     { nodes: Map<string, Node>
       selectedNodeId: string option
-      drag: DragState option }
+      drag: DragState }
     static member Empty =
         { nodes = Map.empty
           selectedNodeId = None
-          drag = None }
+          drag = NotDragging }
 
     static member Update state msg =
         match msg with
         | SelectNode nodeId ->
             match state.selectedNodeId with
             | Some selected when selected = nodeId ->
-                // De-select currently selected node
-                { state with
-                    selectedNodeId = None
-                    drag = None }
+                match state.drag with
+                | NotDragging
+                | Tentative _ ->
+                    // De-select currently selected node.
+                    // If a drag was maybe about to start, no it wasn't.
+                    { state with
+                        selectedNodeId = None
+                        drag = NotDragging }
+                | DragEnding ->
+                    // Ignore the click that ended the drag, as it was not a selection change.
+                    { state with drag = NotDragging }
+                | Dragging _ -> state // Shouldn't happen, so ignore it.
             | _ ->
                 // Select new node, either for the first time or replacing previous selection
                 { state with
                     selectedNodeId = Some nodeId
-                    drag = None }
+                    drag = NotDragging }
         | StartDrag (nodeId, px, py, pz) ->
             match Map.tryFind nodeId state.nodes with
             | Some node ->
-                let (nx, ny, nz) = node.position
-                let offset = (nx - px, ny - py, 0.0) // Only track offset in x and y; ignore z
-                { state with drag = Some { nodeId = nodeId; offset = offset } }
+                let nx, ny, nz = node.position
+                let offset = nx - px, ny - py, nz - pz
+
+                { state with
+                    drag =
+                        Tentative
+                            { nodeId = nodeId
+                              position = node.position
+                              offset = offset } }
             | None -> state
-        | DragTo (px, py, pz) ->
+        | DragTo (px, py, _) ->
+            let updateNodePosition (node: Node) drag state =
+                let ox, oy, _ = drag.offset
+                let _, _, nz = node.position
+                let newPos = px + ox, py + oy, nz // Keep z fixed at original value
+                let updatedNode = { node with position = newPos }
+                let updatedNodes = state.nodes |> Map.add node.id updatedNode
+                newPos, updatedNodes
+
             match state.drag with
-            | Some drag ->
+            | Tentative drag ->
                 match Map.tryFind drag.nodeId state.nodes with
                 | Some node ->
-                    let (ox, oy, _) = drag.offset
-                    let (nx, ny, nz) = node.position
-                    let newPos = (px + ox, py + oy, nz) // Keep z fixed at original value
-                    let updatedNode = { node with position = newPos }
-                    let updatedNodes = state.nodes |> Map.add node.id updatedNode
+                    let newPos, updatedNodes = updateNodePosition node drag state
+
+                    // Calculate distance in 3D (including z) between newPos and the original node position.
+                    let origX, origY, origZ = drag.position
+                    let newX, newY, newZ = newPos
+                    let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
+                    let dist = sqrt (dx * dx + dy * dy + dz * dz)
+                    let threshold = 0.1 // ~10cm in world units; adjust as needed
+
+                    if dist > threshold then
+                        // Transition to Dragging state.
+                        { state with
+                            nodes = updatedNodes
+                            drag = Dragging drag }
+                    else
+                        // Stay in Tentative state, with the updated node position.
+                        { state with nodes = updatedNodes }
+                | None -> state
+            | Dragging drag ->
+                match Map.tryFind drag.nodeId state.nodes with
+                | Some node ->
+                    let _, updatedNodes = updateNodePosition node drag state
                     { state with nodes = updatedNodes }
                 | None -> state
-            | None -> state
-        | EndDrag -> { state with drag = None }
+            | DragEnding
+            | NotDragging -> state
+        | EndDrag ->
+            match state.drag with
+            | Tentative _ ->
+                // If we were in Tentative state, just reset to NotDragging.
+                { state with drag = NotDragging }
+            | _ -> { state with drag = DragEnding }
 
 module Initial =
     let private nodes =
         [ "root1",
           { id = "root1"
-            position = (-1.0, 0.0, 0.0)
+            position = -1.0, 0.0, 0.0
             children = []
             person = Some people[0] }
           "root2",
           { id = "root2"
-            position = (1.0, 0.0, 0.0)
+            position = 1.0, 0.0, 0.0
             children = []
             person = Some people[1] }
           "branch",
           { id = "branch"
-            position = (0.0, -1.0, 0.0)
+            position = 0.0, -1.0, 0.0
             children = [ "child1"; "child2"; "child3" ]
             person = None }
           "child1",
           { id = "child1"
-            position = (-2.0, -2.0, 0.0)
+            position = -2.0, -2.0, 0.0
             children = []
             person = Some people[2] }
           "child2",
           { id = "child2"
-            position = (0.0, -2.0, 0.0)
+            position = 0.0, -2.0, 0.0
             children = []
             person = Some people[3] }
           "child3",
           { id = "child3"
-            position = (2.0, -2.0, 0.0)
+            position = 2.0, -2.0, 0.0
             children = []
             person = Some people[4] } ]
         |> Map.ofList

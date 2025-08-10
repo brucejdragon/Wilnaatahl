@@ -3,15 +3,14 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
-import React, { useState } from "react";
-import { Node$ } from "./generated/ViewModel";
+import React from "react";
+import { DragState_NotDragging, Node$ } from "./generated/ViewModel";
 import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { State, State_Update, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag } from "./generated/ViewModel";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
-import { value as optionValue } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 
 type TreeSceneProps = {
   nodes: Record<string, Node$>;
@@ -127,7 +126,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
   const initialState = React.useMemo(() => {
     // Convert JS object to F# Map
     const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
-    return new State(fsharpMap, undefined, undefined);
+    return new State(fsharpMap, undefined, DragState_NotDragging());
   }, [nodes]);
 
   const [state, dispatch] = React.useReducer(State_Update, initialState);
@@ -135,8 +134,16 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
   // Helper to get pointer position in 3D
   const getPointerPos = (e: any) => [e.point.x, e.point.y, e.point.z] as [number, number, number];
 
-  // Track which node is being dragged (by id)
-  const draggingNodeId = state.drag ? optionValue(state.drag).nodeId : null;
+  // Extract the nodeId being dragged from the drag state (Fable union)
+  function getDraggingNodeId(drag: any): string | null {
+    if (!drag) return null;
+    // DragState: 0 = Tentative, 1 = Dragging, 2 = DragEnding, 3 = NotDragging
+    if ((drag.tag === 0 || drag.tag === 1) && drag.fields && drag.fields[0] && drag.fields[0].nodeId) {
+      return drag.fields[0].nodeId;
+    }
+    return null;
+  }
+  const draggingNodeId = getDraggingNodeId(state.drag);
 
   // Only allow drag for selected node
   const handlePointerDown = (id: string) => (e: any) => {
@@ -264,6 +271,12 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     return [...spheres, ...connectors];
   }, [nodes, state.selectedNodeId, state.nodes, draggingNodeId]);
 
+  // Helper to check if drag state is actually dragging
+  function isOrbitEnabled(drag: any): boolean {
+    // Enable controls if drag.tag === 3 (Not Dragging)
+    return (drag && drag.tag === 3);
+  }
+
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
       <Canvas camera={{ position: [0, 0, 6], fov: 50 }} shadows>
@@ -273,7 +286,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
         <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
         {/* Additional point light for more dynamic lighting */}
         <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-        <OrbitControls enabled={!state.drag} />
+        <OrbitControls enabled={isOrbitEnabled(state.drag)} />
         <group position={[0, 1, 0]}>
           {tree}
         </group>
