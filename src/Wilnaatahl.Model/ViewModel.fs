@@ -29,7 +29,7 @@ type Msg =
     | DragTo of pointer: float * float * float
     | EndDrag
 
-type State =
+type ViewState =
     { nodes: Map<string, Node>
       selectedNodeId: string option
       drag: DragState }
@@ -153,4 +153,4 @@ module Initial =
             person = Some people[4] } ]
         |> Map.ofList
 
-    let state: State = { State.Empty with nodes = nodes }
+    let state: ViewState = { ViewState.Empty with nodes = nodes }

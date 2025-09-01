@@ -7,7 +7,7 @@ import React from "react";
 import { DragState_NotDragging, Node$ } from "./generated/ViewModel";
 import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
-import { State, State_Update, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag } from "./generated/ViewModel";
+import { ViewState, ViewState_Update, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag } from "./generated/ViewModel";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
@@ -126,10 +126,10 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
   const initialState = React.useMemo(() => {
     // Convert JS object to F# Map
     const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
-    return new State(fsharpMap, undefined, DragState_NotDragging());
+    return new ViewState(fsharpMap, undefined, DragState_NotDragging());
   }, [nodes]);
 
-  const [state, dispatch] = React.useReducer(State_Update, initialState);
+  const [state, dispatch] = React.useReducer(ViewState_Update, initialState);
 
   // Helper to get pointer position in 3D
   const getPointerPos = (e: any) => [e.point.x, e.point.y, e.point.z] as [number, number, number];
