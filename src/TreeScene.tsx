@@ -4,16 +4,25 @@ import { OrbitControls, Html } from "@react-three/drei";
 import { JSX, useMemo } from "react";
 import * as THREE from "three";
 import React from "react";
-import { DragState_NotDragging, Node$ } from "./generated/ViewModel";
-import { NodeShape_$union, NodeShape_Sphere } from "./generated/Model";
+import { NodeShape } from "./generated/Model";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
-import { ViewState, ViewState_Update, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag } from "./generated/ViewModel";
+import {
+  DragState_NotDragging,
+  ViewModel,
+  ViewState,
+  Msg_SelectNode,
+  Msg_StartDrag,
+  Msg_DragTo,
+  Msg_EndDrag,
+  TreeNode
+} from "./generated/ViewModel";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
+import { ThreeEvent } from "@react-three/fiber";
 
 type TreeSceneProps = {
-  nodes: Record<string, Node$>;
+  nodes: Record<string, TreeNode>;
 };
 
 function RenderNode({
@@ -29,13 +38,13 @@ function RenderNode({
 }: {
   position: [number, number, number];
   label?: string;
-  type: NodeShape_$union;
+  type: NodeShape;
   isSelected?: boolean;
-  onClick?: () => void;
-  onPointerDown?: (e: any) => void;
-  onPointerMove?: (e: any) => void;
-  onPointerUp?: (e: any) => void;
-  onPointerOut?: (e: any) => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerUp?: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const SelectedNodeColour = "#8B4000"; // Deep, red copper
   return (
@@ -50,7 +59,7 @@ function RenderNode({
         castShadow
         receiveShadow
       >
-        {type.name === "Sphere" ? (
+        {type === "sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
           <boxGeometry args={[0.6, 0.6, 0.6]} />
@@ -122,6 +131,8 @@ function renderParentConnector(
 }
 
 export default function TreeScene({ nodes }: TreeSceneProps) {
+  const viewModel = new ViewModel();
+
   // Convert nodes prop to F# State for reducer init
   const initialState = React.useMemo(() => {
     // Convert JS object to F# Map
@@ -129,44 +140,31 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     return new ViewState(fsharpMap, undefined, DragState_NotDragging());
   }, [nodes]);
 
-  const [state, dispatch] = React.useReducer(ViewState_Update, initialState);
-
-  // Helper to get pointer position in 3D
-  const getPointerPos = (e: any) => [e.point.x, e.point.y, e.point.z] as [number, number, number];
+  const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
 
   // Extract the nodeId being dragged from the drag state (Fable union)
-  function getDraggingNodeId(drag: any): string | null {
-    if (!drag) return null;
-    // DragState: 0 = Tentative, 1 = Dragging, 2 = DragEnding, 3 = NotDragging
-    if ((drag.tag === 0 || drag.tag === 1) && drag.fields && drag.fields[0] && drag.fields[0].nodeId) {
-      return drag.fields[0].nodeId;
-    }
-    return null;
-  }
-  const draggingNodeId = getDraggingNodeId(state.drag);
+  const draggingNodeId = viewModel.GetDraggingNodeId(state);
 
   // Only allow drag for selected node
-  const handlePointerDown = (id: string) => (e: any) => {
+  const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (state.selectedNodeId === id) {
-      const [x, y, z] = getPointerPos(e);
-      dispatch(Msg_StartDrag(id, x, y, z));
+      dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
   };
-  const handlePointerMove = (id: string) => (e: any) => {
+  const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id && e.point) {
-      const [x, y, z] = getPointerPos(e);
-      dispatch(Msg_DragTo(x, y, z));
+      dispatch(Msg_DragTo(e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
   };
-  const handlePointerUp = (id: string) => (e: any) => {
+  const handlePointerUp = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
       e.stopPropagation();
     }
   };
-  const handlePointerOut = (id: string) => (e: any) => {
+  const handlePointerOut = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
     }
@@ -184,7 +182,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
             key={id}
             position={nodeInState ? nodeInState.position : node.position}
             label={defaultArg(person?.label, undefined)} // Use the label from the Person object
-            type={person?.shape ?? NodeShape_Sphere()} // Default to Sphere if no Person
+            type={person?.shape ?? "sphere"} // Default to Sphere if no Person
             isSelected={state.selectedNodeId === id}
             onClick={() => dispatch(Msg_SelectNode(id))}
             onPointerDown={handlePointerDown(id)}
@@ -271,12 +269,6 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     return [...spheres, ...connectors];
   }, [nodes, state.selectedNodeId, state.nodes, draggingNodeId]);
 
-  // Helper to check if drag state is actually dragging
-  function isOrbitEnabled(drag: any): boolean {
-    // Enable controls if drag.tag === 3 (Not Dragging)
-    return (drag && drag.tag === 3);
-  }
-
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
       <Canvas camera={{ position: [0, 0, 6], fov: 50 }} shadows>
@@ -286,7 +278,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
         <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
         {/* Additional point light for more dynamic lighting */}
         <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-        <OrbitControls enabled={isOrbitEnabled(state.drag)} />
+        <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
         <group position={[0, 1, 0]}>
           {tree}
         </group>

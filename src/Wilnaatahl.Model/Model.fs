@@ -1,5 +1,8 @@
 namespace Wilnaatahl.Model
 
+open Fable.Core
+
+[<StringEnum>]
 type NodeShape =
     | Sphere
     | Cube

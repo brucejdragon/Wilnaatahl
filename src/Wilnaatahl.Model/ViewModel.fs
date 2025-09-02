@@ -3,7 +3,7 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.Initial
 
-type Node =
+type TreeNode =
     { id: string
       position: float * float * float
       children: string list
@@ -22,6 +22,10 @@ type DragState =
     // Captures the state between pointer up and the final click, which should be ignored.
     | DragEnding
     | NotDragging
+    member this.ShouldEnableOrbitControls =
+        match this with
+        | NotDragging -> true
+        | _ -> false
 
 type Msg =
     | SelectNode of string
@@ -30,7 +34,7 @@ type Msg =
     | EndDrag
 
 type ViewState =
-    { nodes: Map<string, Node>
+    { nodes: Map<string, TreeNode>
       selectedNodeId: string option
       drag: DragState }
     static member Empty =
@@ -74,7 +78,7 @@ type ViewState =
                               offset = offset } }
             | None -> state
         | DragTo (px, py, _) ->
-            let updateNodePosition (node: Node) drag state =
+            let updateNodePosition (node: TreeNode) drag state =
                 let ox, oy, _ = drag.offset
                 let _, _, nz = node.position
                 let newPos = px + ox, py + oy, nz // Keep z fixed at original value
@@ -118,6 +122,22 @@ type ViewState =
                 // If we were in Tentative state, just reset to NotDragging.
                 { state with drag = NotDragging }
             | _ -> { state with drag = DragEnding }
+
+type IViewModel =
+    abstract Update: ViewState -> Msg -> ViewState
+    abstract ShouldEnableOrbitControls: ViewState -> bool
+    abstract GetDraggingNodeId: ViewState -> string option
+
+type ViewModel() =
+    interface IViewModel with
+        member this.Update state msg = ViewState.Update state msg
+        member this.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+
+        member this.GetDraggingNodeId state =
+            match state.drag with
+            | Tentative drag
+            | Dragging drag -> Some drag.nodeId
+            | _ -> None
 
 module Initial =
     let private nodes =
