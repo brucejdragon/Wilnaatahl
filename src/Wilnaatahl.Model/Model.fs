@@ -36,7 +36,7 @@ module Initial =
     let people =
         [ maternalAncestor
           paternalAncestor
-          { label = Some "GGG Grandmother"
+          { label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
             shape = Sphere
             mother = Some maternalAncestor
             father = Some paternalAncestor

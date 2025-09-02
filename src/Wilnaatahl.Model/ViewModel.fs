@@ -156,7 +156,7 @@ module Initial =
             person = Some people[1] }
           "branch",
           { id = "branch"
-            position = 0.0, -1.0, 0.0
+            position = 0.0, -1.35, 0.0
             children = [ "child1"; "child2"; "child3" ]
             person = None }
           "child1",

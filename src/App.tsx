@@ -16,7 +16,7 @@ function App() {
   const nodes = mapToObject(Initial_state.nodes);
   return (
     <div className="w-full h-screen">
-      <TreeScene nodes={nodes} />
+      <TreeScene initialNodes={nodes} />
     </div>
   );
 }

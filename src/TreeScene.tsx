@@ -19,7 +19,7 @@ import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
 
 type TreeSceneProps = {
-  nodes: Record<string, TreeNode>;
+  initialNodes: Record<string, TreeNode>;
 };
 
 function RenderNode({
@@ -102,39 +102,57 @@ function renderParentConnector(
   parent2Position: [number, number, number]
 ): JSX.Element[] {
   const connectors: JSX.Element[] = [];
-  const parentConnectorY = parent1Position[1]; // Align with the parent nodes' vertical position
-  const gapBetweenLines = 0.2; // Vertical gap between the two lines
-  const centerX = (parent1Position[0] + parent2Position[0]) / 2; // Center between parent1 and parent2
+  const gap = 0.2; // Fixed gap between connectors
 
-  // Top horizontal line
+  // Calculate the vector between the two parent nodes
+  const p1 = new THREE.Vector3(...parent1Position);
+  const p2 = new THREE.Vector3(...parent2Position);
+  const mid = p1.clone().add(p2).multiplyScalar(0.5);
+  const dir = p2.clone().sub(p1).normalize();
+
+  // Find a vector perpendicular to dir in the XY plane
+  const perp = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
+
+  // Top and bottom offsets
+  const offset = perp.clone().multiplyScalar(gap / 2);
+
+  // Calculate connector endpoints
+  const p1Top = p1.clone().add(offset);
+  const p1Bottom = p1.clone().sub(offset);
+  const p2Top = p2.clone().add(offset);
+  const p2Bottom = p2.clone().sub(offset);
+
+  // Top connector
   connectors.push(
     <Connector
       key="parent-connector-top"
-      from={[centerX - 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // Start slightly left of center
-      to={[centerX + 0.5, parentConnectorY + gapBetweenLines / 2, 0]} // End slightly right of center
+      from={[p1Top.x, p1Top.y, p1Top.z]}
+      to={[p2Top.x, p2Top.y, p2Top.z]}
     />
   );
-
-  // Bottom horizontal line
+  // Bottom connector
   connectors.push(
     <Connector
       key="parent-connector-bottom"
-      from={[centerX - 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // Start slightly left of center
-      to={[centerX + 0.5, parentConnectorY - gapBetweenLines / 2, 0]} // End slightly right of center
+      from={[p1Bottom.x, p1Bottom.y, p1Bottom.z]}
+      to={[p2Bottom.x, p2Bottom.y, p2Bottom.z]}
     />
   );
 
   return connectors;
 }
 
-export default function TreeScene({ nodes }: TreeSceneProps) {
+export default function TreeScene({ initialNodes }: TreeSceneProps) {
   const viewModel = new ViewModel();
 
   // Convert nodes prop to F# State for reducer init
-  const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
+  const fsharpMap = ofList(ofArray(Object.entries(initialNodes)), { Compare: comparePrimitives });
   const initialState = viewModel.CreateInitialViewState(fsharpMap);
 
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
+
+  // Always use positions from reducer state
+  const nodes = state.nodes;
 
   // Extract the nodeId being dragged from the drag state (Fable union)
   const draggingNodeId = viewModel.GetDraggingNodeId(state);
@@ -164,16 +182,14 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     }
   };
 
-  const renderedNodes = Object.entries(nodes)
+  const renderedNodes = Array.from(nodes.entries())
     .filter(([id]) => id !== "branch") // Exclude the branch node
     .map(([id, node]) => {
       const person = defaultArg(node.person, undefined);
-      // Always use position from reducer state
-      const nodeInState = state.nodes.get(id);
       return (
         <RenderNode
           key={id}
-          position={nodeInState ? nodeInState.position : node.position}
+          position={node.position}
           label={defaultArg(person?.label, undefined)} // Use the label from the Person object
           type={person?.shape ?? "sphere"} // Default to Sphere if no Person
           isSelected={state.selectedNodeId === id}
@@ -187,14 +203,18 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     });
   const connectors: JSX.Element[] = [];
 
+  const root1 = nodes.get("root1");
+  const root2 = nodes.get("root2");
+  const branch = nodes.get("branch");
+
   connectors.push(
-    ...renderParentConnector(nodes.root1.position, nodes.root2.position)
+    ...renderParentConnector(root1.position, root2.position)
   );
 
   // Add a vertical connector from the midpoint of the bottom line to the branch node
-  const parentConnectorY = nodes.root1.position[1];
+  const parentConnectorY = root1.position[1];
   const gapBetweenLines = 0.2;
-  const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2;
+  const centerX = (root1.position[0] + root2.position[0]) / 2;
   const verticalConnectorStart: [number, number, number] = [
     centerX,
     parentConnectorY - gapBetweenLines / 2 - 0.2,
@@ -204,19 +224,18 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     <Connector
       key="vertical-to-branch"
       from={verticalConnectorStart}
-      to={nodes.branch.position}
+      to={branch.position}
     />
   );
 
   // Add connectors from the branch node to each child node
-  for (var childId of nodes.branch.children) {
-    const childPosition = nodes[childId].position;
+  for (var childId of branch.children) {
+    const childPosition = nodes.get(childId).position;
 
     // For siblings off the center line, create right-angle connectors
     if (childId === "child1" || childId === "child3") {
-      // Lower the junction point closer to the child node
-      const loweredBranchY = nodes.branch.position[1] - 0.35; // Adjust branch point downward
-      const junction = [childPosition[0], loweredBranchY, childPosition[2]] as [
+      const branchY = branch.position[1];
+      const junction = [childPosition[0], branchY, childPosition[2]] as [
         number,
         number,
         number
@@ -226,7 +245,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
       connectors.push(
         <Connector
           key={`branch-to-${childId}-junction`}
-          from={[nodes.branch.position[0], loweredBranchY, nodes.branch.position[2]]}
+          from={[branch.position[0], branchY, branch.position[2]]}
           to={junction}
         />
       );
@@ -252,7 +271,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
       connectors.push(
         <Connector
           key={`branch-to-${childId}`}
-          from={nodes.branch.position}
+          from={branch.position}
           to={childPosition}
         />
       );
