@@ -124,20 +124,23 @@ type ViewState =
             | _ -> { state with drag = DragEnding }
 
 type IViewModel =
-    abstract Update: ViewState -> Msg -> ViewState
-    abstract ShouldEnableOrbitControls: ViewState -> bool
+    abstract CreateInitialViewState: Map<string, TreeNode> -> ViewState
     abstract GetDraggingNodeId: ViewState -> string option
+    abstract ShouldEnableOrbitControls: ViewState -> bool
+    abstract Update: ViewState -> Msg -> ViewState
 
 type ViewModel() =
     interface IViewModel with
-        member this.Update state msg = ViewState.Update state msg
-        member this.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+        member _.CreateInitialViewState nodes = { ViewState.Empty with nodes = nodes }
 
-        member this.GetDraggingNodeId state =
+        member _.GetDraggingNodeId state =
             match state.drag with
             | Tentative drag
             | Dragging drag -> Some drag.nodeId
             | _ -> None
+
+        member _.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+        member _.Update state msg = ViewState.Update state msg
 
 module Initial =
     let private nodes =

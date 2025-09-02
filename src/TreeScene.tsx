@@ -6,9 +6,7 @@ import React from "react";
 import * as THREE from "three";
 import { NodeShape } from "./generated/Model";
 import {
-  DragState_NotDragging,
   ViewModel,
-  ViewState,
   Msg_SelectNode,
   Msg_StartDrag,
   Msg_DragTo,
@@ -134,7 +132,7 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
 
   // Convert nodes prop to F# State for reducer init
   const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
-  const initialState = new ViewState(fsharpMap, undefined, DragState_NotDragging());
+  const initialState = viewModel.CreateInitialViewState(fsharpMap);
 
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
 
