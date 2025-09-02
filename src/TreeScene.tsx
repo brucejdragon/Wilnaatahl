@@ -1,11 +1,10 @@
 // TreeScene.tsx
-import { Canvas } from "@react-three/fiber";
+import { Canvas, ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
-import { JSX, useMemo } from "react";
-import * as THREE from "three";
+import { JSX } from "react";
 import React from "react";
+import * as THREE from "three";
 import { NodeShape } from "./generated/Model";
-import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import {
   DragState_NotDragging,
   ViewModel,
@@ -16,10 +15,10 @@ import {
   Msg_EndDrag,
   TreeNode
 } from "./generated/ViewModel";
+import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
-import { ThreeEvent } from "@react-three/fiber";
 
 type TreeSceneProps = {
   nodes: Record<string, TreeNode>;
@@ -134,11 +133,8 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
   const viewModel = new ViewModel();
 
   // Convert nodes prop to F# State for reducer init
-  const initialState = React.useMemo(() => {
-    // Convert JS object to F# Map
-    const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
-    return new ViewState(fsharpMap, undefined, DragState_NotDragging());
-  }, [nodes]);
+  const fsharpMap = ofList(ofArray(Object.entries(nodes)), { Compare: comparePrimitives });
+  const initialState = new ViewState(fsharpMap, undefined, DragState_NotDragging());
 
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
 
@@ -170,104 +166,102 @@ export default function TreeScene({ nodes }: TreeSceneProps) {
     }
   };
 
-  const tree = useMemo(() => {
-    const spheres = Object.entries(nodes)
-      .filter(([id]) => id !== "branch") // Exclude the branch node
-      .map(([id, node]) => {
-        const person = defaultArg(node.person, undefined);
-        // Always use position from reducer state
-        const nodeInState = state.nodes.get(id);
-        return (
-          <RenderNode
-            key={id}
-            position={nodeInState ? nodeInState.position : node.position}
-            label={defaultArg(person?.label, undefined)} // Use the label from the Person object
-            type={person?.shape ?? "sphere"} // Default to Sphere if no Person
-            isSelected={state.selectedNodeId === id}
-            onClick={() => dispatch(Msg_SelectNode(id))}
-            onPointerDown={handlePointerDown(id)}
-            onPointerMove={handlePointerMove(id)}
-            onPointerUp={handlePointerUp(id)}
-            onPointerOut={handlePointerOut(id)}
-          />
-        );
-      });
-    const connectors: JSX.Element[] = [];
+  const renderedNodes = Object.entries(nodes)
+    .filter(([id]) => id !== "branch") // Exclude the branch node
+    .map(([id, node]) => {
+      const person = defaultArg(node.person, undefined);
+      // Always use position from reducer state
+      const nodeInState = state.nodes.get(id);
+      return (
+        <RenderNode
+          key={id}
+          position={nodeInState ? nodeInState.position : node.position}
+          label={defaultArg(person?.label, undefined)} // Use the label from the Person object
+          type={person?.shape ?? "sphere"} // Default to Sphere if no Person
+          isSelected={state.selectedNodeId === id}
+          onClick={() => dispatch(Msg_SelectNode(id))}
+          onPointerDown={handlePointerDown(id)}
+          onPointerMove={handlePointerMove(id)}
+          onPointerUp={handlePointerUp(id)}
+          onPointerOut={handlePointerOut(id)}
+        />
+      );
+    });
+  const connectors: JSX.Element[] = [];
 
-    connectors.push(
-      ...renderParentConnector(nodes.root1.position, nodes.root2.position)
-    );
+  connectors.push(
+    ...renderParentConnector(nodes.root1.position, nodes.root2.position)
+  );
 
-    // Add a vertical connector from the midpoint of the bottom line to the branch node
-    const parentConnectorY = nodes.root1.position[1];
-    const gapBetweenLines = 0.2;
-    const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2;
-    const verticalConnectorStart: [number, number, number] = [
-      centerX,
-      parentConnectorY - gapBetweenLines / 2 - 0.2,
-      0,
-    ]; // Slight gap below the bottom line
-    connectors.push(
-      <Connector
-        key="vertical-to-branch"
-        from={verticalConnectorStart}
-        to={nodes.branch.position}
-      />
-    );
+  // Add a vertical connector from the midpoint of the bottom line to the branch node
+  const parentConnectorY = nodes.root1.position[1];
+  const gapBetweenLines = 0.2;
+  const centerX = (nodes.root1.position[0] + nodes.root2.position[0]) / 2;
+  const verticalConnectorStart: [number, number, number] = [
+    centerX,
+    parentConnectorY - gapBetweenLines / 2 - 0.2,
+    0,
+  ]; // Slight gap below the bottom line
+  connectors.push(
+    <Connector
+      key="vertical-to-branch"
+      from={verticalConnectorStart}
+      to={nodes.branch.position}
+    />
+  );
 
-    // Add connectors from the branch node to each child node
-    for (var childId of nodes.branch.children) {
-      const childPosition = nodes[childId].position;
+  // Add connectors from the branch node to each child node
+  for (var childId of nodes.branch.children) {
+    const childPosition = nodes[childId].position;
 
-      // For siblings off the center line, create right-angle connectors
-      if (childId === "child1" || childId === "child3") {
-        // Lower the junction point closer to the child node
-        const loweredBranchY = nodes.branch.position[1] - 0.35; // Adjust branch point downward
-        const junction = [childPosition[0], loweredBranchY, childPosition[2]] as [
-          number,
-          number,
-          number
-        ];
+    // For siblings off the center line, create right-angle connectors
+    if (childId === "child1" || childId === "child3") {
+      // Lower the junction point closer to the child node
+      const loweredBranchY = nodes.branch.position[1] - 0.35; // Adjust branch point downward
+      const junction = [childPosition[0], loweredBranchY, childPosition[2]] as [
+        number,
+        number,
+        number
+      ];
 
-        // Add the first segment from the branch to the junction
-        connectors.push(
-          <Connector
-            key={`branch-to-${childId}-junction`}
-            from={[nodes.branch.position[0], loweredBranchY, nodes.branch.position[2]]}
-            to={junction}
-          />
-        );
+      // Add the first segment from the branch to the junction
+      connectors.push(
+        <Connector
+          key={`branch-to-${childId}-junction`}
+          from={[nodes.branch.position[0], loweredBranchY, nodes.branch.position[2]]}
+          to={junction}
+        />
+      );
 
-        // Add the second segment from the junction to the child node
-        connectors.push(
-          <Connector
-            key={`junction-to-${childId}`}
-            from={junction}
-            to={childPosition}
-          />
-        );
+      // Add the second segment from the junction to the child node
+      connectors.push(
+        <Connector
+          key={`junction-to-${childId}`}
+          from={junction}
+          to={childPosition}
+        />
+      );
 
-        // Add a small sphere at the junction point
-        connectors.push(
-          <mesh key={`junction-sphere-${childId}`} position={junction}>
-            <sphereGeometry args={[0.03, 16, 16]} /> {/* Same radius as the cylinders */}
-            <meshStandardMaterial color="#AAAAAA" /> {/* Same color as the cylinders */}
-          </mesh>
-        );
-      } else {
-        // For the center child node, use a straight connector
-        connectors.push(
-          <Connector
-            key={`branch-to-${childId}`}
-            from={nodes.branch.position}
-            to={childPosition}
-          />
-        );
-      }
-    };
+      // Add a small sphere at the junction point
+      connectors.push(
+        <mesh key={`junction-sphere-${childId}`} position={junction}>
+          <sphereGeometry args={[0.03, 16, 16]} /> {/* Same radius as the cylinders */}
+          <meshStandardMaterial color="#AAAAAA" /> {/* Same color as the cylinders */}
+        </mesh>
+      );
+    } else {
+      // For the center child node, use a straight connector
+      connectors.push(
+        <Connector
+          key={`branch-to-${childId}`}
+          from={nodes.branch.position}
+          to={childPosition}
+        />
+      );
+    }
+  };
 
-    return [...spheres, ...connectors];
-  }, [nodes, state.selectedNodeId, state.nodes, draggingNodeId]);
+  const tree = [...renderedNodes, ...connectors];
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
