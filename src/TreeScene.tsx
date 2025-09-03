@@ -97,17 +97,20 @@ function Connector({ from, to }: { from: [number, number, number]; to: [number, 
   );
 }
 
-function renderParentConnector(
+function calculateParentConnectorVectors(
   parent1Position: [number, number, number],
   parent2Position: [number, number, number]
-): JSX.Element[] {
-  const connectors: JSX.Element[] = [];
-  const gap = 0.2; // Fixed gap between connectors
+): {
+  parent1Top: THREE.Vector3;
+  parent1Bottom: THREE.Vector3;
+  parent2Top: THREE.Vector3;
+  parent2Bottom: THREE.Vector3;
+} {
+  const gap = 0.2; // Fixed gap between parent connectors
 
   // Calculate the vector between the two parent nodes
   const p1 = new THREE.Vector3(...parent1Position);
   const p2 = new THREE.Vector3(...parent2Position);
-  const mid = p1.clone().add(p2).multiplyScalar(0.5);
   const dir = p2.clone().sub(p1).normalize();
 
   // Find a vector perpendicular to dir in the XY plane
@@ -121,21 +124,31 @@ function renderParentConnector(
   const p1Bottom = p1.clone().sub(offset);
   const p2Top = p2.clone().add(offset);
   const p2Bottom = p2.clone().sub(offset);
+  return { parent1Top: p1Top, parent1Bottom: p1Bottom, parent2Top: p2Top, parent2Bottom: p2Bottom };
+}
+
+function renderParentConnector(
+  parent1Top: THREE.Vector3,
+  parent1Bottom: THREE.Vector3,
+  parent2Top: THREE.Vector3,
+  parent2Bottom: THREE.Vector3
+): JSX.Element[] {
+  const connectors: JSX.Element[] = [];
 
   // Top connector
   connectors.push(
     <Connector
       key="parent-connector-top"
-      from={[p1Top.x, p1Top.y, p1Top.z]}
-      to={[p2Top.x, p2Top.y, p2Top.z]}
+      from={[parent1Top.x, parent1Top.y, parent1Top.z]}
+      to={[parent2Top.x, parent2Top.y, parent2Top.z]}
     />
   );
   // Bottom connector
   connectors.push(
     <Connector
       key="parent-connector-bottom"
-      from={[p1Bottom.x, p1Bottom.y, p1Bottom.z]}
-      to={[p2Bottom.x, p2Bottom.y, p2Bottom.z]}
+      from={[parent1Bottom.x, parent1Bottom.y, parent1Bottom.z]}
+      to={[parent2Bottom.x, parent2Bottom.y, parent2Bottom.z]}
     />
   );
 
@@ -207,19 +220,21 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
   const root2 = nodes.get("root2");
   const branch = nodes.get("branch");
 
+  const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
+    calculateParentConnectorVectors(root1.position, root2.position);
+
   connectors.push(
-    ...renderParentConnector(root1.position, root2.position)
+    ...renderParentConnector(parent1Top, parent1Bottom, parent2Top, parent2Bottom)
   );
 
-  // Add a vertical connector from the midpoint of the bottom line to the branch node
-  const parentConnectorY = root1.position[1];
-  const gapBetweenLines = 0.2;
-  const centerX = (root1.position[0] + root2.position[0]) / 2;
+  // Add a vertical connector from the midpoint of the bottom connector to the branch node
+  // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
+  const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
   const verticalConnectorStart: [number, number, number] = [
-    centerX,
-    parentConnectorY - gapBetweenLines / 2 - 0.2,
-    0,
-  ]; // Slight gap below the bottom line
+    verticalConnectorStartVec.x,
+    verticalConnectorStartVec.y,
+    verticalConnectorStartVec.z,
+  ];
   connectors.push(
     <Connector
       key="vertical-to-branch"
