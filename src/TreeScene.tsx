@@ -5,17 +5,10 @@ import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
 import { NodeShape } from "./generated/Model";
-import {
-  ViewModel,
-  Msg_SelectNode,
-  Msg_StartDrag,
-  Msg_DragTo,
-  Msg_EndDrag,
-  TreeNode
-} from "./generated/ViewModel";
+import { ViewModel, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
-import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
+import { ofArray, head, last } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
 
 type TreeSceneProps = {
@@ -128,8 +121,10 @@ function calculateParentConnectorVectors(
 }
 
 function renderParentConnector(
+  parent1Id: string,
   parent1Top: THREE.Vector3,
   parent1Bottom: THREE.Vector3,
+  parent2Id: string,
   parent2Top: THREE.Vector3,
   parent2Bottom: THREE.Vector3
 ): JSX.Element[] {
@@ -138,7 +133,7 @@ function renderParentConnector(
   // Top connector
   connectors.push(
     <Connector
-      key="parent-connector-top"
+      key={`parent-${parent1Id}-${parent2Id}-connector-top`}
       from={[parent1Top.x, parent1Top.y, parent1Top.z]}
       to={[parent2Top.x, parent2Top.y, parent2Top.z]}
     />
@@ -146,7 +141,7 @@ function renderParentConnector(
   // Bottom connector
   connectors.push(
     <Connector
-      key="parent-connector-bottom"
+      key={`parent-${parent1Id}-${parent2Id}-connector-bottom`}
       from={[parent1Bottom.x, parent1Bottom.y, parent1Bottom.z]}
       to={[parent2Bottom.x, parent2Bottom.y, parent2Bottom.z]}
     />
@@ -164,9 +159,6 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
 
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
 
-  // Always use positions from reducer state
-  const nodes = state.nodes;
-
   // Extract the nodeId being dragged from the drag state (Fable union)
   const draggingNodeId = viewModel.GetDraggingNodeId(state);
 
@@ -176,122 +168,122 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
       dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
-  };
+  }
   const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id && e.point) {
       dispatch(Msg_DragTo(e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
-  };
+  }
   const handlePointerUp = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
       e.stopPropagation();
     }
-  };
+  }
   const handlePointerOut = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
     }
-  };
+  }
 
-  const renderedNodes = Array.from(nodes.entries())
-    .filter(([id]) => id !== "branch") // Exclude the branch node
-    .map(([id, node]) => {
-      const person = defaultArg(node.person, undefined);
-      return (
-        <RenderNode
-          key={id}
-          position={node.position}
-          label={defaultArg(person?.label, undefined)} // Use the label from the Person object
-          type={person?.shape ?? "sphere"} // Default to Sphere if no Person
-          isSelected={state.selectedNodeId === id}
-          onClick={() => dispatch(Msg_SelectNode(id))}
-          onPointerDown={handlePointerDown(id)}
-          onPointerMove={handlePointerMove(id)}
-          onPointerUp={handlePointerUp(id)}
-          onPointerOut={handlePointerOut(id)}
-        />
-      );
-    });
+  const renderedNodes: JSX.Element[] = [];
+  for (const item of viewModel.EnumerateRenderableNodes(state)) {
+    const [node, person] = item;
+    const id = node.id;
+    renderedNodes.push(
+      <RenderNode
+        key={id}
+        position={node.position}
+        label={defaultArg(person.label, undefined)}
+        type={person.shape}
+        isSelected={state.selectedNodeId === id}
+        onClick={() => dispatch(Msg_SelectNode(id))}
+        onPointerDown={handlePointerDown(id)}
+        onPointerMove={handlePointerMove(id)}
+        onPointerUp={handlePointerUp(id)}
+        onPointerOut={handlePointerOut(id)}
+      />
+    );
+  }
+
   const connectors: JSX.Element[] = [];
+  for (const item of viewModel.EnumerateBranchNodes(state)) {
+    const [branch, branchData] = item;
+    const root1 = state.nodes.get(branchData.parents[0]);
+    const root2 = state.nodes.get(branchData.parents[1]);
 
-  const root1 = nodes.get("root1");
-  const root2 = nodes.get("root2");
-  const branch = nodes.get("branch");
+    const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
+      calculateParentConnectorVectors(root1.position, root2.position);
 
-  const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
-    calculateParentConnectorVectors(root1.position, root2.position);
+    connectors.push(
+      ...renderParentConnector(root1.id, parent1Top, parent1Bottom, root2.id, parent2Top, parent2Bottom)
+    );
 
-  connectors.push(
-    ...renderParentConnector(parent1Top, parent1Bottom, parent2Top, parent2Bottom)
-  );
+    // Add a vertical connector from the midpoint of the bottom connector to the branch node
+    // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
+    const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
+    const verticalConnectorStart: [number, number, number] = [
+      verticalConnectorStartVec.x,
+      verticalConnectorStartVec.y,
+      verticalConnectorStartVec.z,
+    ];
+    connectors.push(
+      <Connector
+        key={`vertical-to-branch-${branch.id}`}
+        from={verticalConnectorStart}
+        to={branch.position}
+      />
+    );
 
-  // Add a vertical connector from the midpoint of the bottom connector to the branch node
-  // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
-  const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
-  const verticalConnectorStart: [number, number, number] = [
-    verticalConnectorStartVec.x,
-    verticalConnectorStartVec.y,
-    verticalConnectorStartVec.z,
-  ];
-  connectors.push(
-    <Connector
-      key="vertical-to-branch"
-      from={verticalConnectorStart}
-      to={branch.position}
-    />
-  );
+    // Add a horizontal connector between the leftmost and rightmost nodes at the branch's Y level.
+    // This includes the branch node itself, to handle the case where all children have been dragged
+    // to one side of the branch node. Each end of the horiztonal connector should have a small sphere
+    // to round out the corner.
+    // TODO: Actually find "leftmost" and "rightmost" based on X/Z position, not just first and last in list
+    const leftMostNodeId = head(branchData.children);
+    const rightMostNodeId = last(branchData.children);
+    const branchY = branch.position[1];
 
-  // Add connectors from the branch node to each child node
-  for (var childId of branch.children) {
-    const childPosition = nodes.get(childId).position;
+    if (leftMostNodeId != rightMostNodeId) {
+      const leftMostNode = state.nodes.get(leftMostNodeId);
+      const rightMostNode = state.nodes.get(rightMostNodeId);
 
-    // For siblings off the center line, create right-angle connectors
-    if (childId === "child1" || childId === "child3") {
-      const branchY = branch.position[1];
-      const junction = [childPosition[0], branchY, childPosition[2]] as [
-        number,
-        number,
-        number
-      ];
-
-      // Add the first segment from the branch to the junction
+      const leftJunction: [number, number, number] = [leftMostNode.position[0], branchY, leftMostNode.position[2]];
+      const rightJunction: [number, number, number] = [rightMostNode.position[0], branchY, rightMostNode.position[2]];
       connectors.push(
         <Connector
-          key={`branch-to-${childId}-junction`}
-          from={[branch.position[0], branchY, branch.position[2]]}
-          to={junction}
+          key={`branch-${branch.id}-to-junctions`}
+          from={leftJunction}
+          to={rightJunction}
         />
       );
 
-      // Add the second segment from the junction to the child node
-      connectors.push(
-        <Connector
-          key={`junction-to-${childId}`}
-          from={junction}
-          to={childPosition}
-        />
-      );
+      const endpoints: [string, [number, number, number]][] =
+        [[leftMostNodeId, leftJunction], [rightMostNodeId, rightJunction]];
 
-      // Add a small sphere at the junction point
-      connectors.push(
-        <mesh key={`junction-sphere-${childId}`} position={junction}>
-          <sphereGeometry args={[0.03, 16, 16]} /> {/* Same radius as the cylinders */}
-          <meshStandardMaterial color="#AAAAAA" /> {/* Same color as the cylinders */}
-        </mesh>
-      );
-    } else {
-      // For the center child node, use a straight connector
+      for (const [nodeId, junction] of endpoints) {
+        connectors.push(
+          <mesh key={`junction-sphere-${nodeId}`} position={junction}>
+            <sphereGeometry args={[0.03, 16, 16]} />
+            <meshStandardMaterial color="#AAAAAA" />
+          </mesh>
+        );
+      }
+    }
+
+    // Add connectors from the branch node to each child node
+    for (const childId of branchData.children) {
+      const childPosition = state.nodes.get(childId).position;
       connectors.push(
         <Connector
           key={`branch-to-${childId}`}
-          from={branch.position}
+          from={[childPosition[0], branchY, childPosition[2]]}
           to={childPosition}
         />
       );
     }
-  };
+  }
 
   const tree = [...renderedNodes, ...connectors];
 

@@ -3,11 +3,18 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.Initial
 
+type BranchNodeData =
+    { parents: string * string
+      children: string list }
+
+type TreeNodeData =
+    | RenderableNode of Person
+    | BranchNode of BranchNodeData
+
 type TreeNode =
     { id: string
       position: float * float * float
-      children: string list
-      person: Person option }
+      data: TreeNodeData }
 
 type DragStart =
     { nodeId: string
@@ -125,6 +132,8 @@ type ViewState =
 
 type IViewModel =
     abstract CreateInitialViewState: Map<string, TreeNode> -> ViewState
+    abstract EnumerateBranchNodes: ViewState -> seq<TreeNode * BranchNodeData>
+    abstract EnumerateRenderableNodes: ViewState -> seq<TreeNode * Person>
     abstract GetDraggingNodeId: ViewState -> string option
     abstract ShouldEnableOrbitControls: ViewState -> bool
     abstract Update: ViewState -> Msg -> ViewState
@@ -132,6 +141,22 @@ type IViewModel =
 type ViewModel() =
     interface IViewModel with
         member _.CreateInitialViewState nodes = { ViewState.Empty with nodes = nodes }
+
+        member _.EnumerateBranchNodes state =
+            state.nodes
+            |> Map.toSeq
+            |> Seq.choose (fun (_, node) ->
+                match node.data with
+                | RenderableNode _ -> None
+                | BranchNode branchData -> Some(node, branchData))
+
+        member _.EnumerateRenderableNodes state =
+            state.nodes
+            |> Map.toSeq
+            |> Seq.choose (fun (_, node) ->
+                match node.data with
+                | BranchNode _ -> None
+                | RenderableNode person -> Some(node, person))
 
         member _.GetDraggingNodeId state =
             match state.drag with
@@ -147,33 +172,30 @@ module Initial =
         [ "root1",
           { id = "root1"
             position = -1.0, 0.0, 0.0
-            children = []
-            person = Some people[0] }
+            data = RenderableNode people[0] }
           "root2",
           { id = "root2"
             position = 1.0, 0.0, 0.0
-            children = []
-            person = Some people[1] }
+            data = RenderableNode people[1] }
           "branch",
           { id = "branch"
             position = 0.0, -1.35, 0.0
-            children = [ "child1"; "child2"; "child3" ]
-            person = None }
+            data =
+              BranchNode
+                  { parents = "root1", "root2"
+                    children = [ "child1"; "child2"; "child3" ] } }
           "child1",
           { id = "child1"
             position = -2.0, -2.0, 0.0
-            children = []
-            person = Some people[2] }
+            data = RenderableNode people[2] }
           "child2",
           { id = "child2"
             position = 0.0, -2.0, 0.0
-            children = []
-            person = Some people[3] }
+            data = RenderableNode people[3] }
           "child3",
           { id = "child3"
             position = 2.0, -2.0, 0.0
-            children = []
-            person = Some people[4] } ]
+            data = RenderableNode people[4] } ]
         |> Map.ofList
 
     let state: ViewState = { ViewState.Empty with nodes = nodes }
