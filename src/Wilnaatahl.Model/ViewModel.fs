@@ -3,18 +3,15 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.Initial
 
-type BranchNodeData =
-    { parents: string * string
+type Branch =
+    { id: string
+      parents: string * string
       children: string list }
-
-type TreeNodeData =
-    | RenderableNode of Person
-    | BranchNode of BranchNodeData
 
 type TreeNode =
     { id: string
       position: float * float * float
-      data: TreeNodeData }
+      person: Person }
 
 type DragStart =
     { nodeId: string
@@ -42,10 +39,12 @@ type Msg =
 
 type ViewState =
     { nodes: Map<string, TreeNode>
+      branches: Branch list
       selectedNodeId: string option
       drag: DragState }
     static member Empty =
         { nodes = Map.empty
+          branches = []
           selectedNodeId = None
           drag = NotDragging }
 
@@ -131,32 +130,26 @@ type ViewState =
             | _ -> { state with drag = DragEnding }
 
 type IViewModel =
-    abstract CreateInitialViewState: Map<string, TreeNode> -> ViewState
-    abstract EnumerateBranchNodes: ViewState -> seq<TreeNode * BranchNodeData>
-    abstract EnumerateRenderableNodes: ViewState -> seq<TreeNode * Person>
+    abstract CreateInitialViewState: Map<string, TreeNode> -> seq<Branch> -> ViewState
+    abstract EnumerateBranches: ViewState -> seq<Branch>
+    abstract EnumerateTreeNodes: ViewState -> seq<TreeNode>
     abstract GetDraggingNodeId: ViewState -> string option
     abstract ShouldEnableOrbitControls: ViewState -> bool
     abstract Update: ViewState -> Msg -> ViewState
 
 type ViewModel() =
     interface IViewModel with
-        member _.CreateInitialViewState nodes = { ViewState.Empty with nodes = nodes }
+        member _.CreateInitialViewState nodes branches =
+            { ViewState.Empty with
+                nodes = nodes
+                branches = List.ofSeq branches }
 
-        member _.EnumerateBranchNodes state =
+        member _.EnumerateBranches state = state.branches
+
+        member _.EnumerateTreeNodes state =
             state.nodes
             |> Map.toSeq
-            |> Seq.choose (fun (_, node) ->
-                match node.data with
-                | RenderableNode _ -> None
-                | BranchNode branchData -> Some(node, branchData))
-
-        member _.EnumerateRenderableNodes state =
-            state.nodes
-            |> Map.toSeq
-            |> Seq.choose (fun (_, node) ->
-                match node.data with
-                | BranchNode _ -> None
-                | RenderableNode person -> Some(node, person))
+            |> Seq.map (fun (_, node) -> node)
 
         member _.GetDraggingNodeId state =
             match state.drag with
@@ -172,30 +165,31 @@ module Initial =
         [ "root1",
           { id = "root1"
             position = -1.0, 0.0, 0.0
-            data = RenderableNode people[0] }
+            person = people[0] }
           "root2",
           { id = "root2"
             position = 1.0, 0.0, 0.0
-            data = RenderableNode people[1] }
-          "branch",
-          { id = "branch"
-            position = 0.0, -1.35, 0.0
-            data =
-              BranchNode
-                  { parents = "root1", "root2"
-                    children = [ "child1"; "child2"; "child3" ] } }
+            person = people[1] }
           "child1",
           { id = "child1"
             position = -2.0, -2.0, 0.0
-            data = RenderableNode people[2] }
+            person = people[2] }
           "child2",
           { id = "child2"
             position = 0.0, -2.0, 0.0
-            data = RenderableNode people[3] }
+            person = people[3] }
           "child3",
           { id = "child3"
             position = 2.0, -2.0, 0.0
-            data = RenderableNode people[4] } ]
+            person = people[4] } ]
         |> Map.ofList
 
-    let state: ViewState = { ViewState.Empty with nodes = nodes }
+    let private branches =
+        [ { id = "branch"
+            parents = "root1", "root2"
+            children = [ "child1"; "child2"; "child3" ] } ]
+
+    let state: ViewState =
+        { ViewState.Empty with
+            nodes = nodes
+            branches = branches }

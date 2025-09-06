@@ -5,14 +5,14 @@ import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
 import { Person } from "./generated/Model";
-import { ViewModel, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode } from "./generated/ViewModel";
+import { ViewModel, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode, Branch } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
-import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
-import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
-import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
+import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
+import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 
 type TreeSceneProps = {
-  initialNodes: Record<string, TreeNode>;
+  initialNodes: FSharpMap<string, TreeNode>;
+  initialBranches: FSharpList<Branch>;
 };
 
 function TreeNodeMesh({
@@ -128,13 +128,9 @@ function calculateParentConnectorSegments(
   return { parent1Top: p1Top, parent1Bottom: p1Bottom, parent2Top: p2Top, parent2Bottom: p2Bottom };
 }
 
-export default function TreeScene({ initialNodes }: TreeSceneProps) {
+export default function TreeScene({ initialNodes, initialBranches }: TreeSceneProps) {
   const viewModel = new ViewModel();
-
-  // Convert nodes prop to F# State for reducer init
-  const fsharpMap = ofList(ofArray(Object.entries(initialNodes)), { Compare: comparePrimitives });
-  const initialState = viewModel.CreateInitialViewState(fsharpMap);
-
+  const initialState = viewModel.CreateInitialViewState(initialNodes, initialBranches);
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
   const draggingNodeId = viewModel.GetDraggingNodeId(state);
 
@@ -164,14 +160,13 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
   }
 
   const renderedNodes: JSX.Element[] = [];
-  for (const item of viewModel.EnumerateRenderableNodes(state)) {
-    const [node, personData] = item;
+  for (const node of viewModel.EnumerateTreeNodes(state)) {
     const id = node.id;
     renderedNodes.push(
       <TreeNodeMesh
         key={id}
         position={node.position}
-        person={personData}
+        person={node.person}
         isSelected={state.selectedNodeId === id}
         onClick={() => dispatch(Msg_SelectNode(id))}
         onPointerDown={handlePointerDown(id)}
@@ -183,10 +178,9 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
   }
 
   const connectors: JSX.Element[] = [];
-  for (const item of viewModel.EnumerateBranchNodes(state)) {
-    const [branch, branchData] = item;
-    const root1 = state.nodes.get(branchData.parents[0]);
-    const root2 = state.nodes.get(branchData.parents[1]);
+  for (const branch of viewModel.EnumerateBranches(state)) {
+    const root1 = state.nodes.get(branch.parents[0]);
+    const root2 = state.nodes.get(branch.parents[1]);
 
     const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
       calculateParentConnectorSegments(root1.position, root2.position);
@@ -204,7 +198,8 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
       );
     }
 
-    // Add a vertical connector from the midpoint of the bottom connector to the branch node
+    // Calculate the branch position dynamically based on the highest child node and
+    // midpoint of the bottom connector between the parents.
     // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
     const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
     const verticalConnectorStart: [number, number, number] = [
@@ -212,29 +207,43 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
       verticalConnectorStartVec.y,
       verticalConnectorStartVec.z,
     ];
+
+    // Find the highest child node
+    var highestChildY = -Infinity;
+    for (const childId of branch.children) {
+      const childY = state.nodes.get(childId).position[1];
+      if (childY > highestChildY) {
+        highestChildY = childY;
+      }
+    }
+
+    const branchPosition: [number, number, number] =
+      [verticalConnectorStartVec.x, highestChildY + 0.65, verticalConnectorStartVec.z];
+
+    // Add a vertical connector from the midpoint of the bottom connector to the branch position
     connectors.push(
       <ConnectorMesh
         key={`vertical-to-branch-${branch.id}`}
         from={verticalConnectorStart}
-        to={branch.position}
+        to={branchPosition}
       />
     );
 
     // Add connectors from the branch node to each child node. Unless a child node is directly below
     // the branch node, a right-angle connector with sphere "elbow" is needed.
     var childrenDirectlyBelow = 0;
-    for (const childId of branchData.children) {
+    for (const childId of branch.children) {
       const childPosition = state.nodes.get(childId).position;
-      const branchY = branch.position[1];
+      const branchY = branchPosition[1];
 
       var childConnectorKey: React.Key;
-      if (childPosition[0] !== branch.position[0] || childPosition[2] !== branch.position[2]) {
+      if (childPosition[0] !== branchPosition[0] || childPosition[2] !== branchPosition[2]) {
         // Child is not directly below branch, so add right-angle connector with sphere "elbow"
         const junction: [number, number, number] = [childPosition[0], branchY, childPosition[2]];
         connectors.push(
           <ConnectorMesh
             key={`branch-to-${childId}-junction`}
-            from={branch.position}
+            from={branchPosition}
             to={junction}
           />
         );
@@ -263,7 +272,7 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
     // at the branch end of the connector.
     if (childrenDirectlyBelow === 0) {
       connectors.push(
-        <ElbowSphereMesh key={`junction-sphere-${branch.id}`} position={branch.position} />
+        <ElbowSphereMesh key={`junction-sphere-${branch.id}`} position={branchPosition} />
       );
     }
   }
