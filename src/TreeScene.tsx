@@ -4,21 +4,20 @@ import { OrbitControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
-import { NodeShape } from "./generated/Model";
+import { Person } from "./generated/Model";
 import { ViewModel, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { ofList } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
-import { ofArray, head, last } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
+import { ofArray } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { comparePrimitives } from "./generated/fable_modules/fable-library-ts.4.25.0/Util.js";
 
 type TreeSceneProps = {
   initialNodes: Record<string, TreeNode>;
 };
 
-function RenderNode({
+function TreeNodeMesh({
   position,
-  label,
-  type,
+  person,
   isSelected = false,
   onClick,
   onPointerDown,
@@ -27,8 +26,7 @@ function RenderNode({
   onPointerOut,
 }: {
   position: [number, number, number];
-  label?: string;
-  type: NodeShape;
+  person: Person;
   isSelected?: boolean;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
@@ -36,7 +34,8 @@ function RenderNode({
   onPointerUp?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const SelectedNodeColour = "#8B4000"; // Deep, red copper
+  const selectedNodeColour = "#8B4000"; // Deep, red copper
+  const label = defaultArg(person.label, undefined);
   return (
     <>
       <mesh
@@ -49,16 +48,16 @@ function RenderNode({
         castShadow
         receiveShadow
       >
-        {type === "sphere" ? (
+        {person.shape === "sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
           <boxGeometry args={[0.6, 0.6, 0.6]} />
         )}
         <meshStandardMaterial
-          color={isSelected ? SelectedNodeColour : "#FF0000"} // Deep copper if selected, red otherwise
+          color={isSelected ? selectedNodeColour : "#FF0000"} // Deep copper if selected, red otherwise
           metalness={0.3} // Slight metallic effect
           roughness={0.3} // Moderate roughness for better light scattering
-          emissive={isSelected ? SelectedNodeColour : undefined}
+          emissive={isSelected ? selectedNodeColour : undefined}
           emissiveIntensity={isSelected ? 0.8 : 0}
         />
       </mesh>
@@ -73,7 +72,7 @@ function RenderNode({
   );
 }
 
-function Connector({ from, to }: { from: [number, number, number]; to: [number, number, number] }) {
+function ConnectorMesh({ from, to }: { from: [number, number, number]; to: [number, number, number] }) {
   const direction = new THREE.Vector3(...to).sub(new THREE.Vector3(...from));
   const length = direction.length();
   const mid = new THREE.Vector3(...from).add(direction.clone().multiplyScalar(0.5));
@@ -90,7 +89,16 @@ function Connector({ from, to }: { from: [number, number, number]; to: [number, 
   );
 }
 
-function calculateParentConnectorVectors(
+function ElbowSphereMesh({ position }: { position: [number, number, number] }) {
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[0.03, 16, 16]} />
+      <meshStandardMaterial color="#AAAAAA" />
+    </mesh>
+  );
+}
+
+function calculateParentConnectorSegments(
   parent1Position: [number, number, number],
   parent2Position: [number, number, number]
 ): {
@@ -120,36 +128,6 @@ function calculateParentConnectorVectors(
   return { parent1Top: p1Top, parent1Bottom: p1Bottom, parent2Top: p2Top, parent2Bottom: p2Bottom };
 }
 
-function renderParentConnector(
-  parent1Id: string,
-  parent1Top: THREE.Vector3,
-  parent1Bottom: THREE.Vector3,
-  parent2Id: string,
-  parent2Top: THREE.Vector3,
-  parent2Bottom: THREE.Vector3
-): JSX.Element[] {
-  const connectors: JSX.Element[] = [];
-
-  // Top connector
-  connectors.push(
-    <Connector
-      key={`parent-${parent1Id}-${parent2Id}-connector-top`}
-      from={[parent1Top.x, parent1Top.y, parent1Top.z]}
-      to={[parent2Top.x, parent2Top.y, parent2Top.z]}
-    />
-  );
-  // Bottom connector
-  connectors.push(
-    <Connector
-      key={`parent-${parent1Id}-${parent2Id}-connector-bottom`}
-      from={[parent1Bottom.x, parent1Bottom.y, parent1Bottom.z]}
-      to={[parent2Bottom.x, parent2Bottom.y, parent2Bottom.z]}
-    />
-  );
-
-  return connectors;
-}
-
 export default function TreeScene({ initialNodes }: TreeSceneProps) {
   const viewModel = new ViewModel();
 
@@ -158,8 +136,6 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
   const initialState = viewModel.CreateInitialViewState(fsharpMap);
 
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
-
-  // Extract the nodeId being dragged from the drag state (Fable union)
   const draggingNodeId = viewModel.GetDraggingNodeId(state);
 
   // Only allow drag for selected node
@@ -170,7 +146,7 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
     }
   }
   const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    if (draggingNodeId === id && e.point) {
+    if (draggingNodeId === id) {
       dispatch(Msg_DragTo(e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
@@ -189,14 +165,13 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
 
   const renderedNodes: JSX.Element[] = [];
   for (const item of viewModel.EnumerateRenderableNodes(state)) {
-    const [node, person] = item;
+    const [node, personData] = item;
     const id = node.id;
     renderedNodes.push(
-      <RenderNode
+      <TreeNodeMesh
         key={id}
         position={node.position}
-        label={defaultArg(person.label, undefined)}
-        type={person.shape}
+        person={personData}
         isSelected={state.selectedNodeId === id}
         onClick={() => dispatch(Msg_SelectNode(id))}
         onPointerDown={handlePointerDown(id)}
@@ -214,11 +189,20 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
     const root2 = state.nodes.get(branchData.parents[1]);
 
     const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
-      calculateParentConnectorVectors(root1.position, root2.position);
+      calculateParentConnectorSegments(root1.position, root2.position);
 
-    connectors.push(
-      ...renderParentConnector(root1.id, parent1Top, parent1Bottom, root2.id, parent2Top, parent2Bottom)
-    );
+    const parentSegments: [string, THREE.Vector3, THREE.Vector3][] =
+      [["top", parent1Top, parent2Top], ["bottom", parent1Bottom, parent2Bottom]];
+
+    for (const [label, v1, v2] of parentSegments) {
+      connectors.push(
+        <ConnectorMesh
+          key={`parent-${root1.id}-${root2.id}-connector-${label}`}
+          from={[v1.x, v1.y, v1.z]}
+          to={[v2.x, v2.y, v2.z]}
+        />
+      );
+    }
 
     // Add a vertical connector from the midpoint of the bottom connector to the branch node
     // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
@@ -229,58 +213,57 @@ export default function TreeScene({ initialNodes }: TreeSceneProps) {
       verticalConnectorStartVec.z,
     ];
     connectors.push(
-      <Connector
+      <ConnectorMesh
         key={`vertical-to-branch-${branch.id}`}
         from={verticalConnectorStart}
         to={branch.position}
       />
     );
 
-    // Add a horizontal connector between the leftmost and rightmost nodes at the branch's Y level.
-    // This includes the branch node itself, to handle the case where all children have been dragged
-    // to one side of the branch node. Each end of the horiztonal connector should have a small sphere
-    // to round out the corner.
-    // TODO: Actually find "leftmost" and "rightmost" based on X/Z position, not just first and last in list
-    const leftMostNodeId = head(branchData.children);
-    const rightMostNodeId = last(branchData.children);
-    const branchY = branch.position[1];
-
-    if (leftMostNodeId != rightMostNodeId) {
-      const leftMostNode = state.nodes.get(leftMostNodeId);
-      const rightMostNode = state.nodes.get(rightMostNodeId);
-
-      const leftJunction: [number, number, number] = [leftMostNode.position[0], branchY, leftMostNode.position[2]];
-      const rightJunction: [number, number, number] = [rightMostNode.position[0], branchY, rightMostNode.position[2]];
-      connectors.push(
-        <Connector
-          key={`branch-${branch.id}-to-junctions`}
-          from={leftJunction}
-          to={rightJunction}
-        />
-      );
-
-      const endpoints: [string, [number, number, number]][] =
-        [[leftMostNodeId, leftJunction], [rightMostNodeId, rightJunction]];
-
-      for (const [nodeId, junction] of endpoints) {
-        connectors.push(
-          <mesh key={`junction-sphere-${nodeId}`} position={junction}>
-            <sphereGeometry args={[0.03, 16, 16]} />
-            <meshStandardMaterial color="#AAAAAA" />
-          </mesh>
-        );
-      }
-    }
-
-    // Add connectors from the branch node to each child node
+    // Add connectors from the branch node to each child node. Unless a child node is directly below
+    // the branch node, a right-angle connector with sphere "elbow" is needed.
+    var childrenDirectlyBelow = 0;
     for (const childId of branchData.children) {
       const childPosition = state.nodes.get(childId).position;
+      const branchY = branch.position[1];
+
+      var childConnectorKey: React.Key;
+      if (childPosition[0] !== branch.position[0] || childPosition[2] !== branch.position[2]) {
+        // Child is not directly below branch, so add right-angle connector with sphere "elbow"
+        const junction: [number, number, number] = [childPosition[0], branchY, childPosition[2]];
+        connectors.push(
+          <ConnectorMesh
+            key={`branch-to-${childId}-junction`}
+            from={branch.position}
+            to={junction}
+          />
+        );
+        connectors.push(
+          <ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />
+        );
+        childConnectorKey = `junction-to-${childId}`;
+      }
+      else {
+        // Child is directly below branch, so a straight connector suffices, and we won't
+        // need an "elbow" sphere at the branch point later.
+        childrenDirectlyBelow++;
+        childConnectorKey = `branch-to-${childId}`;
+      }
+
       connectors.push(
-        <Connector
-          key={`branch-to-${childId}`}
+        <ConnectorMesh
+          key={childConnectorKey}
           from={[childPosition[0], branchY, childPosition[2]]}
           to={childPosition}
         />
+      );
+    }
+
+    // Unless there is a child directly below the branch, add another sphere for the elbow
+    // at the branch end of the connector.
+    if (childrenDirectlyBelow === 0) {
+      connectors.push(
+        <ElbowSphereMesh key={`junction-sphere-${branch.id}`} position={branch.position} />
       );
     }
   }
