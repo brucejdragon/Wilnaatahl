@@ -208,10 +208,13 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
       verticalConnectorStartVec.z,
     ];
 
+    // Get all children of the branch
+    const children = viewModel.EnumerateChildren(state, branch);
+
     // Find the highest child node
     var highestChildY = -Infinity;
-    for (const childId of branch.children) {
-      const childY = state.nodes.get(childId).position[1];
+    for (const child of children) {
+      const childY = child.position[1];
       if (childY > highestChildY) {
         highestChildY = childY;
       }
@@ -232,8 +235,9 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     // Add connectors from the branch node to each child node. Unless a child node is directly below
     // the branch node, a right-angle connector with sphere "elbow" is needed.
     var childrenDirectlyBelow = 0;
-    for (const childId of branch.children) {
-      const childPosition = state.nodes.get(childId).position;
+    for (const child of children) {
+      const childPosition = child.position;
+      const childId = child.id;
       const branchY = branchPosition[1];
 
       var childConnectorKey: React.Key;
@@ -278,6 +282,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   }
 
   const tree = [...renderedNodes, ...connectors];
+  const shouldEnableOrbitControls = viewModel.ShouldEnableOrbitControls(state);
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -288,7 +293,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
         <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
         {/* Additional point light for more dynamic lighting */}
         <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-        <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
+        <OrbitControls enabled={shouldEnableOrbitControls} />
         <group position={[0, 1, 0]}>
           {tree}
         </group>

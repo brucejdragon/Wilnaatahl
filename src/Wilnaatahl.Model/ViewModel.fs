@@ -132,6 +132,7 @@ type ViewState =
 type IViewModel =
     abstract CreateInitialViewState: Map<string, TreeNode> -> seq<Branch> -> ViewState
     abstract EnumerateBranches: ViewState -> seq<Branch>
+    abstract EnumerateChildren: ViewState -> Branch -> seq<TreeNode>
     abstract EnumerateTreeNodes: ViewState -> seq<TreeNode>
     abstract GetDraggingNodeId: ViewState -> string option
     abstract ShouldEnableOrbitControls: ViewState -> bool
@@ -146,10 +147,13 @@ type ViewModel() =
 
         member _.EnumerateBranches state = state.branches
 
+        member _.EnumerateChildren state branch =
+            branch.children
+            |> List.choose (fun childId -> Map.tryFind childId state.nodes)
+            |> List.toSeq
+
         member _.EnumerateTreeNodes state =
-            state.nodes
-            |> Map.toSeq
-            |> Seq.map (fun (_, node) -> node)
+            state.nodes |> Map.values :> seq<TreeNode>
 
         member _.GetDraggingNodeId state =
             match state.drag with
