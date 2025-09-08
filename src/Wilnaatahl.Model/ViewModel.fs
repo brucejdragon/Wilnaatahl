@@ -37,14 +37,20 @@ type Msg =
     | StartDrag of nodeId: string * pointer: float * float * float
     | DragTo of pointer: float * float * float
     | EndDrag
+    | Undo
+    | Redo
 
 type ViewState =
     { nodes: Map<string, TreeNode>
+      pastNodes: Map<string, TreeNode> list
+      futureNodes: Map<string, TreeNode> list
       branches: Branch list
       selectedNodeId: string option
       drag: DragState }
     static member Empty =
         { nodes = Map.empty
+          pastNodes = []
+          futureNodes = []
           branches = []
           selectedNodeId = None
           drag = NotDragging }
@@ -55,11 +61,22 @@ type ViewState =
             match state.selectedNodeId with
             | Some selected when selected = nodeId ->
                 match state.drag with
-                | NotDragging
+                | NotDragging ->
+                    // De-select currently selected node.
+                    { state with
+                        selectedNodeId = None
+                        drag = NotDragging }
                 | Tentative _ ->
                     // De-select currently selected node.
-                    // If a drag was maybe about to start, no it wasn't.
+                    // A drag was maybe about to start, but we're going to pretend it wasn't.
+                    // That includes an automatic undo to not clutter the undo history.
+                    let newPastNodes =
+                        match state.pastNodes with
+                        | _ :: rest -> rest // Remove last saved state
+                        | [] -> [] // Nothing to remove
+
                     { state with
+                        pastNodes = newPastNodes
                         selectedNodeId = None
                         drag = NotDragging }
                 | DragEnding ->
@@ -71,13 +88,25 @@ type ViewState =
                 { state with
                     selectedNodeId = Some nodeId
                     drag = NotDragging }
+        | DeselectNode ->
+            match state.selectedNodeId with
+            | Some _ ->
+                { state with
+                    selectedNodeId = None
+                    drag = NotDragging }
+            | None -> state
         | StartDrag (nodeId, px, py, pz) ->
             match Map.tryFind nodeId state.nodes with
             | Some node ->
+                // Use this opportunity to save the current node positions before
+                // they start changing for undo/redo.
+                let newPastNodes = state.nodes :: state.pastNodes
+
                 let nx, ny, nz = node.position
                 let offset = nx - px, ny - py, nz - pz
 
                 { state with
+                    pastNodes = newPastNodes
                     drag =
                         Tentative
                             { nodeId = nodeId
@@ -126,18 +155,46 @@ type ViewState =
         | EndDrag ->
             match state.drag with
             | Tentative _ ->
-                // If we were in Tentative state, just reset to NotDragging.
-                { state with drag = NotDragging }
-            | _ -> { state with drag = DragEnding }
-        | DeselectNode ->
-            match state.selectedNodeId with
-            | Some _ ->
+                // If we were in Tentative state, reset to NotDragging and
+                // do an automatic undo to not clutter the undo history.
+                let newPastNodes =
+                    match state.pastNodes with
+                    | _ :: rest -> rest // Remove last saved state
+                    | [] -> [] // Nothing to remove
+
                 { state with
-                    selectedNodeId = None
+                    pastNodes = newPastNodes
                     drag = NotDragging }
-            | None -> state
+            | _ ->
+                // If the drag really is ending, we can flush the redo history
+                // to avoid massive time-travel confusion for the user.
+                { state with
+                    futureNodes = []
+                    drag = DragEnding }
+        | Undo ->
+            match state.pastNodes with
+            | prev :: rest ->
+                let newFutureNodes = state.nodes :: state.futureNodes
+
+                { state with
+                    nodes = prev
+                    pastNodes = rest
+                    futureNodes = newFutureNodes }
+            | [] -> state // nothing to undo
+        | Redo ->
+            match state.futureNodes with
+            | next :: rest ->
+                let newPastNodes = state.nodes :: state.pastNodes
+
+                { state with
+                    nodes = next
+                    pastNodes = newPastNodes
+                    futureNodes = rest }
+            | [] -> state // nothing to redo
 
 type IViewModel =
+    abstract CanRedo: ViewState -> bool
+    abstract CanUndo: ViewState -> bool
     abstract CreateInitialViewState: Map<string, TreeNode> -> seq<Branch> -> ViewState
     abstract EnumerateBranches: ViewState -> seq<Branch>
     abstract EnumerateChildren: ViewState -> Branch -> seq<TreeNode>
@@ -148,6 +205,10 @@ type IViewModel =
 
 type ViewModel() =
     interface IViewModel with
+        member _.CanRedo state = not (List.isEmpty state.futureNodes)
+
+        member _.CanUndo state = not (List.isEmpty state.pastNodes)
+
         member _.CreateInitialViewState nodes branches =
             { ViewState.Empty with
                 nodes = nodes
@@ -170,6 +231,7 @@ type ViewModel() =
             | _ -> None
 
         member _.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+
         member _.Update state msg = ViewState.Update state msg
 
 module Initial =

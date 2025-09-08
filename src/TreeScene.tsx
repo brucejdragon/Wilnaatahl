@@ -5,7 +5,7 @@ import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
 import { Person } from "./generated/Model";
-import { ViewModel, Msg_SelectNode, Msg_DeselectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode, Branch } from "./generated/ViewModel";
+import { ViewModel, Msg_SelectNode, Msg_DeselectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, Msg_Undo, Msg_Redo, TreeNode, Branch } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
@@ -293,24 +293,35 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   const tree = [...renderedNodes, ...connectors];
   const shouldEnableOrbitControls = viewModel.ShouldEnableOrbitControls(state);
 
+  // Undo/Redo buttons
+  // Disable if no undo/redo available
+  const canRedo = viewModel.CanRedo(state);
+  const canUndo = viewModel.CanUndo(state);
+
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <Canvas
-        camera={{ position: [0, 0, 6], fov: 50 }}
-        shadows
-        onPointerMissed={handleBackgroundClick}
-      >
-        {/* Ambient light for general illumination */}
-        <ambientLight intensity={0.7} />
-        {/* Directional light for stronger highlights and shadows */}
-        <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-        {/* Additional point light for more dynamic lighting */}
-        <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-        <OrbitControls enabled={shouldEnableOrbitControls} />
-        <group position={[0, 1, 0]}>
-          {tree}
-        </group>
-      </Canvas>
+    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+      <div style={{ margin: "8px" }}>
+        <button onClick={() => dispatch(Msg_Undo())} disabled={!canUndo}>Undo</button>
+        <button onClick={() => dispatch(Msg_Redo())} disabled={!canRedo} style={{ marginLeft: "8px" }}>Redo</button>
+      </div>
+      <div style={{ flex: 1, width: "100%", height: "100%" }}>
+        <Canvas
+          camera={{ position: [0, 0, 6], fov: 50 }}
+          shadows
+          onPointerMissed={handleBackgroundClick}
+        >
+          {/* Ambient light for general illumination */}
+          <ambientLight intensity={0.7} />
+          {/* Directional light for stronger highlights and shadows */}
+          <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+          {/* Additional point light for more dynamic lighting */}
+          <pointLight position={[1, -1, 2]} intensity={5} castShadow />
+          <OrbitControls enabled={shouldEnableOrbitControls} />
+          <group position={[0, 1, 0]}>
+            {tree}
+          </group>
+        </Canvas>
+      </div>
     </div>
   );
 }
