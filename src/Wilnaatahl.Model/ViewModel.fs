@@ -33,6 +33,7 @@ type DragState =
 
 type Msg =
     | SelectNode of string
+    | DeselectNode
     | StartDrag of nodeId: string * pointer: float * float * float
     | DragTo of pointer: float * float * float
     | EndDrag
@@ -128,6 +129,13 @@ type ViewState =
                 // If we were in Tentative state, just reset to NotDragging.
                 { state with drag = NotDragging }
             | _ -> { state with drag = DragEnding }
+        | DeselectNode ->
+            match state.selectedNodeId with
+            | Some _ ->
+                { state with
+                    selectedNodeId = None
+                    drag = NotDragging }
+            | None -> state
 
 type IViewModel =
     abstract CreateInitialViewState: Map<string, TreeNode> -> seq<Branch> -> ViewState

@@ -5,7 +5,7 @@ import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
 import { Person } from "./generated/Model";
-import { ViewModel, Msg_SelectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode, Branch } from "./generated/ViewModel";
+import { ViewModel, Msg_SelectNode, Msg_DeselectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, TreeNode, Branch } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
@@ -27,12 +27,12 @@ function TreeNodeMesh({
 }: {
   position: [number, number, number];
   person: Person;
-  isSelected?: boolean;
-  onClick?: (e: ThreeEvent<MouseEvent>) => void;
-  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerMove?: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerUp?: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
+  isSelected: boolean;
+  onClick: (e: ThreeEvent<MouseEvent>) => void;
+  onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerOut: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const selectedNodeColour = "#8B4000"; // Deep, red copper
   const label = defaultArg(person.label, undefined);
@@ -158,6 +158,15 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
       dispatch(Msg_EndDrag());
     }
   }
+  const handleNodeClick = (id: string) => (e: ThreeEvent<MouseEvent>) => {
+    dispatch(Msg_SelectNode(id));
+    e.stopPropagation();
+  }
+  const handleBackgroundClick = () => {
+    if (state.selectedNodeId != null) {
+      dispatch(Msg_DeselectNode());
+    }
+  }
 
   const renderedNodes: JSX.Element[] = [];
   for (const node of viewModel.EnumerateTreeNodes(state)) {
@@ -168,7 +177,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
         position={node.position}
         person={node.person}
         isSelected={state.selectedNodeId === id}
-        onClick={() => dispatch(Msg_SelectNode(id))}
+        onClick={handleNodeClick(id)}
         onPointerDown={handlePointerDown(id)}
         onPointerMove={handlePointerMove(id)}
         onPointerUp={handlePointerUp(id)}
@@ -286,7 +295,11 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <Canvas camera={{ position: [0, 0, 6], fov: 50 }} shadows>
+      <Canvas
+        camera={{ position: [0, 0, 6], fov: 50 }}
+        shadows
+        onPointerMissed={handleBackgroundClick}
+      >
         {/* Ambient light for general illumination */}
         <ambientLight intensity={0.7} />
         {/* Directional light for stronger highlights and shadows */}
