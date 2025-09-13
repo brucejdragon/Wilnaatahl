@@ -5,7 +5,8 @@ import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
 import { Person } from "./generated/Model";
-import { ViewModel, Msg_SelectNode, Msg_DeselectNode, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, Msg_Undo, Msg_Redo, TreeNode, Branch } from "./generated/ViewModel";
+import { TreeNode } from "./generated/NodeState";
+import { ViewModel, Msg_SelectNode, Msg_DeselectAll, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, Msg_Undo, Msg_Redo, Branch } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
@@ -136,10 +137,8 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
 
   // Only allow drag for selected node
   const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    if (state.selectedNodeId === id) {
-      dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
-      e.stopPropagation();
-    }
+    dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
+    e.stopPropagation();
   }
   const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
@@ -163,20 +162,20 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     e.stopPropagation();
   }
   const handleBackgroundClick = () => {
-    if (state.selectedNodeId != null) {
-      dispatch(Msg_DeselectNode());
-    }
+    dispatch(Msg_DeselectAll());
   }
 
   const renderedNodes: JSX.Element[] = [];
-  for (const node of viewModel.EnumerateTreeNodes(state)) {
+  for (const nodeInfo of viewModel.EnumerateTreeNodes(state)) {
+    const node = nodeInfo[0];
+    const isSelected = nodeInfo[1];
     const id = node.id;
     renderedNodes.push(
       <TreeNodeMesh
         key={id}
         position={node.position}
         person={node.person}
-        isSelected={state.selectedNodeId === id}
+        isSelected={isSelected}
         onClick={handleNodeClick(id)}
         onPointerDown={handlePointerDown(id)}
         onPointerMove={handlePointerMove(id)}
