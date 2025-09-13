@@ -188,11 +188,12 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
 
   const connectors: JSX.Element[] = [];
   for (const branch of viewModel.EnumerateBranches(state)) {
-    const root1 = state.nodes.get(branch.parents[0]);
-    const root2 = state.nodes.get(branch.parents[1]);
+    const parents = viewModel.EnumerateParents(state, branch);
+    const parent1 = parents[0];
+    const parent2 = parents[1];
 
     const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
-      calculateParentConnectorSegments(root1.position, root2.position);
+      calculateParentConnectorSegments(parent1.position, parent2.position);
 
     const parentSegments: [string, THREE.Vector3, THREE.Vector3][] =
       [["top", parent1Top, parent2Top], ["bottom", parent1Bottom, parent2Bottom]];
@@ -200,7 +201,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     for (const [label, v1, v2] of parentSegments) {
       connectors.push(
         <ConnectorMesh
-          key={`parent-${root1.id}-${root2.id}-connector-${label}`}
+          key={`parent-${parent1.id}-${parent2.id}-connector-${label}`}
           from={[v1.x, v1.y, v1.z]}
           to={[v2.x, v2.y, v2.z]}
         />
