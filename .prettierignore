@@ -1,0 +1,5 @@
+# Prettier
+node_modules/
+dist/
+bin/
+obj/

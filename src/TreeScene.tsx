@@ -6,7 +6,17 @@ import React from "react";
 import * as THREE from "three";
 import { Person } from "./generated/Model";
 import { TreeNode } from "./generated/NodeState";
-import { ViewModel, Msg_SelectNode, Msg_DeselectAll, Msg_StartDrag, Msg_DragTo, Msg_EndDrag, Msg_Undo, Msg_Redo, Branch } from "./generated/ViewModel";
+import {
+  ViewModel,
+  Msg_SelectNode,
+  Msg_DeselectAll,
+  Msg_StartDrag,
+  Msg_DragTo,
+  Msg_EndDrag,
+  Msg_Undo,
+  Msg_Redo,
+  Branch,
+} from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
 import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
@@ -64,7 +74,9 @@ function TreeNodeMesh({
       </mesh>
       {label && (
         <Html position={[position[0], position[1] - 0.5, position[2]]} center>
-          <div style={{ color: "white", fontSize: "16px", textAlign: "center", pointerEvents: "none" }}>
+          <div
+            style={{ color: "white", fontSize: "16px", textAlign: "center", pointerEvents: "none" }}
+          >
             {label}
           </div>
         </Html>
@@ -73,7 +85,13 @@ function TreeNodeMesh({
   );
 }
 
-function ConnectorMesh({ from, to }: { from: [number, number, number]; to: [number, number, number] }) {
+function ConnectorMesh({
+  from,
+  to,
+}: {
+  from: [number, number, number];
+  to: [number, number, number];
+}) {
   const direction = new THREE.Vector3(...to).sub(new THREE.Vector3(...from));
   const length = direction.length();
   const mid = new THREE.Vector3(...from).add(direction.clone().multiplyScalar(0.5));
@@ -139,31 +157,31 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
     e.stopPropagation();
-  }
+  };
   const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_DragTo(e.point.x, e.point.y, e.point.z));
       e.stopPropagation();
     }
-  }
+  };
   const handlePointerUp = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
       e.stopPropagation();
     }
-  }
+  };
   const handlePointerOut = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     if (draggingNodeId === id) {
       dispatch(Msg_EndDrag());
     }
-  }
+  };
   const handleNodeClick = (id: string) => (e: ThreeEvent<MouseEvent>) => {
     dispatch(Msg_SelectNode(id));
     e.stopPropagation();
-  }
+  };
   const handleBackgroundClick = () => {
     dispatch(Msg_DeselectAll());
-  }
+  };
 
   const renderedNodes: JSX.Element[] = [];
   for (const nodeInfo of viewModel.EnumerateTreeNodes(state)) {
@@ -194,8 +212,10 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
       calculateParentConnectorSegments(parent1.position, parent2.position);
 
-    const parentSegments: [string, THREE.Vector3, THREE.Vector3][] =
-      [["top", parent1Top, parent2Top], ["bottom", parent1Bottom, parent2Bottom]];
+    const parentSegments: [string, THREE.Vector3, THREE.Vector3][] = [
+      ["top", parent1Top, parent2Top],
+      ["bottom", parent1Bottom, parent2Bottom],
+    ];
 
     for (const [label, v1, v2] of parentSegments) {
       connectors.push(
@@ -210,7 +230,11 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     // Calculate the branch position dynamically based on the highest child node and
     // midpoint of the bottom connector between the parents.
     // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
-    const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
+    const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(
+      parent1Bottom,
+      parent2Bottom,
+      0.5
+    );
     const verticalConnectorStart: [number, number, number] = [
       verticalConnectorStartVec.x,
       verticalConnectorStartVec.y,
@@ -229,8 +253,11 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
       }
     }
 
-    const branchPosition: [number, number, number] =
-      [verticalConnectorStartVec.x, highestChildY + 0.65, verticalConnectorStartVec.z];
+    const branchPosition: [number, number, number] = [
+      verticalConnectorStartVec.x,
+      highestChildY + 0.65,
+      verticalConnectorStartVec.z,
+    ];
 
     // Add a vertical connector from the midpoint of the bottom connector to the branch position
     connectors.push(
@@ -260,12 +287,9 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
             to={junction}
           />
         );
-        connectors.push(
-          <ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />
-        );
+        connectors.push(<ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />);
         childConnectorKey = `junction-to-${childId}`;
-      }
-      else {
+      } else {
         // Child is directly below branch, so a straight connector suffices, and we won't
         // need an "elbow" sphere at the branch point later.
         childrenDirectlyBelow++;
@@ -299,10 +323,27 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   const canUndo = viewModel.CanUndo(state);
 
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+    <div
+      style={{
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
       <div style={{ margin: "8px" }}>
-        <button onClick={() => dispatch(Msg_Undo())} disabled={!canUndo}>Undo</button>
-        <button onClick={() => dispatch(Msg_Redo())} disabled={!canRedo} style={{ marginLeft: "8px" }}>Redo</button>
+        <button onClick={() => dispatch(Msg_Undo())} disabled={!canUndo}>
+          Undo
+        </button>
+        <button
+          onClick={() => dispatch(Msg_Redo())}
+          disabled={!canRedo}
+          style={{ marginLeft: "8px" }}
+        >
+          Redo
+        </button>
       </div>
       <div style={{ flex: 1, width: "100%", height: "100%" }}>
         <Canvas
@@ -317,9 +358,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
           {/* Additional point light for more dynamic lighting */}
           <pointLight position={[1, -1, 2]} intensity={5} castShadow />
           <OrbitControls enabled={shouldEnableOrbitControls} />
-          <group position={[0, 1, 0]}>
-            {tree}
-          </group>
+          <group position={[0, 1, 0]}>{tree}</group>
         </Canvas>
       </div>
     </div>

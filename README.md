@@ -1,4 +1,5 @@
 # Wilnaatahl
+
 A tool for visualizing the genealogical relationships of Gitxsan huwilp members.
 
 # Development Instructions
@@ -75,7 +76,27 @@ This installs all dependencies listed in `package.json`, including React, Three.
 npm install --save-dev @types/node
 ```
 
-### ✅ 5. Install `serve` to Preview Production Builds
+### ✅ 5. Set Up Prettier for Code Formatting
+
+Prettier is used to automatically format TypeScript, JavaScript, and .tsx files for consistency.
+
+Install Prettier as a dev dependency:
+
+```powershell
+npm install --save-dev prettier
+```
+
+To format all supported files in the project, run:
+
+```powershell
+npx prettier --write .
+```
+
+You can also use the Prettier extension in VS Code for on-save formatting.
+
+Prettier is configured via the `.prettierrc` file in the project root. Files and folders to ignore are listed in `.prettierignore`.
+
+### ✅ 6. Install `serve` to Preview Production Builds
 
 If you want to serve the `dist` folder (after building) with a static server:
 
@@ -88,6 +109,7 @@ This will start a local static server, typically accessible at: http://localhost
 ## Commands for Dev Inner Loop
 
 The following terminal commands are your dev inner loop:
+
 - To build and run in the dev server for iterative development: `npm run dev`
 - To build for deployment: `npm run build`
 - To host the deployment-ready build locally for testing: `serve dist`

@@ -4,9 +4,7 @@
   "tools": {
     "fable": {
       "version": "4.25.0",
-      "commands": [
-        "fable"
-      ],
+      "commands": ["fable"],
       "rollForward": false
     }
   }
