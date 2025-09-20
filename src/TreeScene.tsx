@@ -1,6 +1,6 @@
 // TreeScene.tsx
 import { Canvas, ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
@@ -10,6 +10,7 @@ import {
   ViewModel,
   Msg_SelectNode,
   Msg_DeselectAll,
+  Msg_TouchNode,
   Msg_StartDrag,
   Msg_DragTo,
   Msg_EndDrag,
@@ -32,18 +33,12 @@ function TreeNodeMesh({
   isSelected = false,
   onClick,
   onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerOut,
 }: {
   position: [number, number, number];
   person: Person;
   isSelected: boolean;
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerUp: (e: ThreeEvent<PointerEvent>) => void;
-  onPointerOut: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const selectedNodeColour = "#8B4000"; // Deep, red copper
   const label = defaultArg(person.label, undefined);
@@ -53,9 +48,6 @@ function TreeNodeMesh({
         position={position}
         onClick={onClick}
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerOut={onPointerOut}
         castShadow
         receiveShadow
       >
@@ -151,29 +143,9 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   const viewModel = new ViewModel();
   const initialState = viewModel.CreateInitialViewState(initialNodes, initialBranches);
   const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
-  const draggingNodeId = viewModel.GetDraggingNodeId(state);
 
-  // Only allow drag for selected node
   const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    dispatch(Msg_StartDrag(id, e.point.x, e.point.y, e.point.z));
-    e.stopPropagation();
-  };
-  const handlePointerMove = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    if (draggingNodeId === id) {
-      dispatch(Msg_DragTo(e.point.x, e.point.y, e.point.z));
-      e.stopPropagation();
-    }
-  };
-  const handlePointerUp = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    if (draggingNodeId === id) {
-      dispatch(Msg_EndDrag());
-      e.stopPropagation();
-    }
-  };
-  const handlePointerOut = (id: string) => (e: ThreeEvent<PointerEvent>) => {
-    if (draggingNodeId === id) {
-      dispatch(Msg_EndDrag());
-    }
+    dispatch(Msg_TouchNode(id));
   };
   const handleNodeClick = (id: string) => (e: ThreeEvent<MouseEvent>) => {
     dispatch(Msg_SelectNode(id));
@@ -182,13 +154,25 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   const handleBackgroundClick = () => {
     dispatch(Msg_DeselectAll());
   };
+  const handleDragStart = (origin: THREE.Vector3) => {
+    dispatch(Msg_StartDrag(origin.x, origin.y, origin.z));
+  };
+  const handleDragEnd = () => {
+    dispatch(Msg_EndDrag());
+  };
+  const handleDrag = (l: THREE.Matrix4, dl: THREE.Matrix4, w: THREE.Matrix4, dw: THREE.Matrix4) => {
+    const local = new THREE.Vector3();
+    l.decompose(local, new THREE.Quaternion(), new THREE.Vector3());
+    dispatch(Msg_DragTo(local.x, local.y, local.z));
+  };
 
-  const renderedNodes: JSX.Element[] = [];
+  const renderedStaticNodes: JSX.Element[] = [];
+  const renderedDraggableNodes: JSX.Element[] = [];
   for (const nodeInfo of viewModel.EnumerateTreeNodes(state)) {
     const node = nodeInfo[0];
     const isSelected = nodeInfo[1];
     const id = node.id;
-    renderedNodes.push(
+    const renderedNode = (
       <TreeNodeMesh
         key={id}
         position={node.position}
@@ -196,11 +180,13 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
         isSelected={isSelected}
         onClick={handleNodeClick(id)}
         onPointerDown={handlePointerDown(id)}
-        onPointerMove={handlePointerMove(id)}
-        onPointerUp={handlePointerUp(id)}
-        onPointerOut={handlePointerOut(id)}
       />
     );
+    if (isSelected) {
+      renderedDraggableNodes.push(renderedNode);
+    } else {
+      renderedStaticNodes.push(renderedNode);
+    }
   }
 
   const connectors: JSX.Element[] = [];
@@ -314,7 +300,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     }
   }
 
-  const tree = [...renderedNodes, ...connectors];
+  const tree = [...renderedStaticNodes, ...connectors];
   const shouldEnableOrbitControls = viewModel.ShouldEnableOrbitControls(state);
 
   // Undo/Redo buttons
@@ -358,7 +344,18 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
           {/* Additional point light for more dynamic lighting */}
           <pointLight position={[1, -1, 2]} intensity={5} castShadow />
           <OrbitControls enabled={shouldEnableOrbitControls} />
-          <group position={[0, 1, 0]}>{tree}</group>
+          <group position={[0, 1, 0]}>
+            <DragControls
+              autoTransform={false}
+              axisLock="z"
+              onDragStart={handleDragStart}
+              onDrag={handleDrag}
+              onDragEnd={handleDragEnd}
+            >
+              {renderedDraggableNodes}
+            </DragControls>
+            {tree}
+          </group>
         </Canvas>
       </div>
     </div>

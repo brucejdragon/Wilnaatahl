@@ -22,11 +22,6 @@ module UndoableState =
     let copyCurrentToUndo state =
         { state with past = state.present :: state.past }
 
-    let discardLastUndo state =
-        match state.past with
-        | _ :: rest -> { state with past = rest }
-        | [] -> state
-
     let redo state =
         match state.future with
         | next :: rest ->

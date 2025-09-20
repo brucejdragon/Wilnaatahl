@@ -35,6 +35,12 @@ module NodeState =
     let select nodeId state =
         { state with selectedNodeId = Some nodeId }
 
+    let selected state =
+        state.selectedNodeId
+        |> Option.toList
+        |> List.map (fun id -> findNode id state)
+        |> Seq.ofList
+
     let setNode nodeId node state =
         assert (state.nodes |> Map.containsKey nodeId)
         { state with nodes = state.nodes |> Map.add nodeId node }
