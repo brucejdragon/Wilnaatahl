@@ -16,8 +16,8 @@ type DragState =
     | NotDragging
     member this.ShouldEnableOrbitControls =
         match this with
-        | DragEnding
         | NotDragging -> true
+        | DragEnding
         | Dragging _ -> false
 
 type Msg =

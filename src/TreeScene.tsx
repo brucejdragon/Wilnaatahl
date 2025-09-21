@@ -4,7 +4,6 @@ import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
-import { Person } from "./generated/Model";
 import { TreeNode } from "./generated/NodeState";
 import {
   ViewModel,
@@ -77,16 +76,10 @@ function TreeNodeMesh({
   );
 }
 
-function ConnectorMesh({
-  from,
-  to,
-}: {
-  from: [number, number, number];
-  to: [number, number, number];
-}) {
-  const direction = new THREE.Vector3(...to).sub(new THREE.Vector3(...from));
+function ConnectorMesh({ from, to }: { from: THREE.Vector3; to: THREE.Vector3 }) {
+  const direction = to.clone().sub(from);
   const length = direction.length();
-  const mid = new THREE.Vector3(...from).add(direction.clone().multiplyScalar(0.5));
+  const mid = from.clone().add(direction.clone().multiplyScalar(0.5));
   const orientation = new THREE.Quaternion().setFromUnitVectors(
     new THREE.Vector3(0, 1, 0), // cylinder's up axis
     direction.clone().normalize()
@@ -100,7 +93,7 @@ function ConnectorMesh({
   );
 }
 
-function ElbowSphereMesh({ position }: { position: [number, number, number] }) {
+function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
   return (
     <mesh position={position}>
       <sphereGeometry args={[0.03, 16, 16]} />
@@ -109,34 +102,122 @@ function ElbowSphereMesh({ position }: { position: [number, number, number] }) {
   );
 }
 
-function calculateParentConnectorSegments(
-  parent1Position: [number, number, number],
-  parent2Position: [number, number, number]
-): {
-  parent1Top: THREE.Vector3;
-  parent1Bottom: THREE.Vector3;
-  parent2Top: THREE.Vector3;
-  parent2Bottom: THREE.Vector3;
-} {
-  const gap = 0.2; // Fixed gap between parent connectors
+function ChildrenGroup({
+  branchId,
+  position, // Location of the top of vertical connector that goes down to the children.
+  children,
+}: {
+  branchId: string;
+  position: THREE.Vector3;
+  children: Iterable<TreeNode>;
+}) {
+  // Calculate the branch position dynamically based on the highest child node and
+  // the given midpoint of the bottom connector between the parents.
+  var highestChildY = -Infinity;
+  for (const child of children) {
+    const childY = child.position[1];
+    if (childY > highestChildY) {
+      highestChildY = childY;
+    }
+  }
 
+  const branchPosition = new THREE.Vector3(position.x, highestChildY + 0.65, position.z);
+  const connectors: JSX.Element[] = [];
+  connectors.push(
+    <ConnectorMesh key={`vertical-to-branch-${branchId}`} from={position} to={branchPosition} />
+  );
+
+  // Add connectors from the branch node to each child node. Unless a child node is directly below
+  // the branch node, a right-angle connector with sphere "elbow" is needed.
+  var childrenDirectlyBelow = 0;
+  for (const child of children) {
+    const childPosition = new THREE.Vector3(...child.position);
+    const childId = child.id;
+    const branchY = branchPosition.y;
+
+    var childConnectorKey: React.Key;
+    const junction = new THREE.Vector3(childPosition.x, branchY, childPosition.z);
+    if (childPosition.x !== branchPosition.x || childPosition.z !== branchPosition.z) {
+      // Child is not directly below branch, so add right-angle connector with sphere "elbow"
+      connectors.push(
+        <ConnectorMesh key={`branch-to-${childId}-junction`} from={branchPosition} to={junction} />
+      );
+      connectors.push(<ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />);
+      childConnectorKey = `junction-to-${childId}`;
+    } else {
+      // Child is directly below branch, so a straight connector suffices, and we won't
+      // need an "elbow" sphere at the branch point later.
+      childrenDirectlyBelow++;
+      childConnectorKey = `branch-to-${childId}`;
+    }
+
+    connectors.push(<ConnectorMesh key={childConnectorKey} from={junction} to={childPosition} />);
+  }
+
+  // Unless there is a child directly below the branch, add another sphere for the elbow
+  // at the branch end of the connector.
+  if (childrenDirectlyBelow === 0) {
+    connectors.push(
+      <ElbowSphereMesh key={`junction-sphere-${branchId}`} position={branchPosition} />
+    );
+  }
+
+  return <group>{connectors}</group>;
+}
+
+function FamilyGroup({
+  branchId,
+  parent1,
+  parent2,
+  children,
+}: {
+  branchId: string;
+  parent1: TreeNode;
+  parent2: TreeNode;
+  children: Iterable<TreeNode>;
+}) {
   // Calculate the vector between the two parent nodes
-  const p1 = new THREE.Vector3(...parent1Position);
-  const p2 = new THREE.Vector3(...parent2Position);
+  const p1 = new THREE.Vector3(...parent1.position);
+  const p2 = new THREE.Vector3(...parent2.position);
   const dir = p2.clone().sub(p1).normalize();
 
   // Find a vector perpendicular to dir in the XY plane
   const perp = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
 
   // Top and bottom offsets
-  const offset = perp.clone().multiplyScalar(gap / 2);
+  const gap = 0.1; // Fixed gap between parent connectors
+  const offset = perp.clone().multiplyScalar(gap);
 
   // Calculate connector endpoints
-  const p1Top = p1.clone().add(offset);
-  const p1Bottom = p1.clone().sub(offset);
-  const p2Top = p2.clone().add(offset);
-  const p2Bottom = p2.clone().sub(offset);
-  return { parent1Top: p1Top, parent1Bottom: p1Bottom, parent2Top: p2Top, parent2Bottom: p2Bottom };
+  const parent1Top = p1.clone().add(offset);
+  const parent1Bottom = p1.clone().sub(offset);
+  const parent2Top = p2.clone().add(offset);
+  const parent2Bottom = p2.clone().sub(offset);
+
+  // Calculate the branch position dynamically based on the highest child node and
+  // midpoint of the bottom connector between the parents.
+  const verticalConnectorStart = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
+
+  return (
+    <group>
+      <ConnectorMesh
+        key={`parent-${parent1.id}-${parent2.id}-connector-top`}
+        from={parent1Top}
+        to={parent2Top}
+      />
+      <ConnectorMesh
+        key={`parent-${parent1.id}-${parent2.id}-connector-bottom`}
+        from={parent1Bottom}
+        to={parent2Bottom}
+      />
+      <ChildrenGroup
+        key={`children-of-${branchId}`}
+        branchId={branchId}
+        position={verticalConnectorStart}
+        children={children}
+      />
+    </group>
+  );
 }
 
 export default function TreeScene({ initialNodes, initialBranches }: TreeSceneProps) {
@@ -154,167 +235,52 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
     dispatch(Msg_SelectNode(id));
     e.stopPropagation();
   };
-  const handleBackgroundClick = () => {
-    dispatch(Msg_DeselectAll());
-  };
-  const handleDragStart = (origin: THREE.Vector3) => {
-    dispatch(Msg_StartDrag(origin.x, origin.y, origin.z));
-  };
-  const handleDragEnd = () => {
-    dispatch(Msg_EndDrag());
-  };
-  const handleDrag = (l: THREE.Matrix4, dl: THREE.Matrix4, w: THREE.Matrix4, dw: THREE.Matrix4) => {
+
+  const staticNodes: JSX.Element[] = [];
+  for (const node of viewModel.EnumerateUnselectedTreeNodes(state)) {
+    staticNodes.push(
+      <TreeNodeMesh
+        key={node.id}
+        node={node}
+        isSelected={false}
+        onClick={handleNodeClick(node.id)}
+        onPointerDown={handlePointerDown(node.id)}
+      />
+    );
+  }
+
+  const draggableNodes: JSX.Element[] = [];
+  for (const node of viewModel.EnumerateSelectedTreeNodes(state)) {
+    draggableNodes.push(
+      <TreeNodeMesh
+        key={node.id}
+        node={node}
+        isSelected={true}
+        onClick={handleNodeClick(node.id)}
+        onPointerDown={handlePointerDown(node.id)}
+      />
+    );
+  }
+
+  const familyGroups: JSX.Element[] = [];
+  for (const branch of viewModel.EnumerateBranches(state)) {
+    const parents = viewModel.EnumerateParents(state, branch);
+    familyGroups.push(
+      <FamilyGroup
+        key={`family-of-${branch.id}`}
+        branchId={branch.id}
+        parent1={parents[0]}
+        parent2={parents[1]}
+        children={viewModel.EnumerateChildren(state, branch)}
+      />
+    );
+  }
+
+  const handleDrag = (l: THREE.Matrix4) => {
     const local = new THREE.Vector3();
     l.decompose(local, new THREE.Quaternion(), new THREE.Vector3());
     dispatch(Msg_DragTo(local.x, local.y, local.z));
   };
-
-  const renderedStaticNodes: JSX.Element[] = [];
-  for (const node of viewModel.EnumerateUnselectedTreeNodes(state)) {
-    const id = node.id;
-    renderedStaticNodes.push(
-      <TreeNodeMesh
-        key={id}
-        node={node}
-        isSelected={false}
-        onClick={handleNodeClick(id)}
-        onPointerDown={handlePointerDown(id)}
-      />
-    );
-  }
-
-  const renderedDraggableNodes: JSX.Element[] = [];
-  for (const node of viewModel.EnumerateSelectedTreeNodes(state)) {
-    const id = node.id;
-    renderedDraggableNodes.push(
-      <TreeNodeMesh
-        key={id}
-        node={node}
-        isSelected={true}
-        onClick={handleNodeClick(id)}
-        onPointerDown={handlePointerDown(id)}
-      />
-    );
-  }
-
-  const connectors: JSX.Element[] = [];
-  for (const branch of viewModel.EnumerateBranches(state)) {
-    const parents = viewModel.EnumerateParents(state, branch);
-    const parent1 = parents[0];
-    const parent2 = parents[1];
-
-    const { parent1Top, parent1Bottom, parent2Top, parent2Bottom } =
-      calculateParentConnectorSegments(parent1.position, parent2.position);
-
-    const parentSegments: [string, THREE.Vector3, THREE.Vector3][] = [
-      ["top", parent1Top, parent2Top],
-      ["bottom", parent1Bottom, parent2Bottom],
-    ];
-
-    for (const [label, v1, v2] of parentSegments) {
-      connectors.push(
-        <ConnectorMesh
-          key={`parent-${parent1.id}-${parent2.id}-connector-${label}`}
-          from={[v1.x, v1.y, v1.z]}
-          to={[v2.x, v2.y, v2.z]}
-        />
-      );
-    }
-
-    // Calculate the branch position dynamically based on the highest child node and
-    // midpoint of the bottom connector between the parents.
-    // Use Three.js to calculate the midpoint between parent1Bottom and parent2Bottom
-    const verticalConnectorStartVec = new THREE.Vector3().lerpVectors(
-      parent1Bottom,
-      parent2Bottom,
-      0.5
-    );
-    const verticalConnectorStart: [number, number, number] = [
-      verticalConnectorStartVec.x,
-      verticalConnectorStartVec.y,
-      verticalConnectorStartVec.z,
-    ];
-
-    // Get all children of the branch
-    const children = viewModel.EnumerateChildren(state, branch);
-
-    // Find the highest child node
-    var highestChildY = -Infinity;
-    for (const child of children) {
-      const childY = child.position[1];
-      if (childY > highestChildY) {
-        highestChildY = childY;
-      }
-    }
-
-    const branchPosition: [number, number, number] = [
-      verticalConnectorStartVec.x,
-      highestChildY + 0.65,
-      verticalConnectorStartVec.z,
-    ];
-
-    // Add a vertical connector from the midpoint of the bottom connector to the branch position
-    connectors.push(
-      <ConnectorMesh
-        key={`vertical-to-branch-${branch.id}`}
-        from={verticalConnectorStart}
-        to={branchPosition}
-      />
-    );
-
-    // Add connectors from the branch node to each child node. Unless a child node is directly below
-    // the branch node, a right-angle connector with sphere "elbow" is needed.
-    var childrenDirectlyBelow = 0;
-    for (const child of children) {
-      const childPosition = child.position;
-      const childId = child.id;
-      const branchY = branchPosition[1];
-
-      var childConnectorKey: React.Key;
-      if (childPosition[0] !== branchPosition[0] || childPosition[2] !== branchPosition[2]) {
-        // Child is not directly below branch, so add right-angle connector with sphere "elbow"
-        const junction: [number, number, number] = [childPosition[0], branchY, childPosition[2]];
-        connectors.push(
-          <ConnectorMesh
-            key={`branch-to-${childId}-junction`}
-            from={branchPosition}
-            to={junction}
-          />
-        );
-        connectors.push(<ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />);
-        childConnectorKey = `junction-to-${childId}`;
-      } else {
-        // Child is directly below branch, so a straight connector suffices, and we won't
-        // need an "elbow" sphere at the branch point later.
-        childrenDirectlyBelow++;
-        childConnectorKey = `branch-to-${childId}`;
-      }
-
-      connectors.push(
-        <ConnectorMesh
-          key={childConnectorKey}
-          from={[childPosition[0], branchY, childPosition[2]]}
-          to={childPosition}
-        />
-      );
-    }
-
-    // Unless there is a child directly below the branch, add another sphere for the elbow
-    // at the branch end of the connector.
-    if (childrenDirectlyBelow === 0) {
-      connectors.push(
-        <ElbowSphereMesh key={`junction-sphere-${branch.id}`} position={branchPosition} />
-      );
-    }
-  }
-
-  const tree = [...renderedStaticNodes, ...connectors];
-  const shouldEnableOrbitControls = viewModel.ShouldEnableOrbitControls(state);
-
-  // Undo/Redo buttons
-  // Disable if no undo/redo available
-  const canRedo = viewModel.CanRedo(state);
-  const canUndo = viewModel.CanUndo(state);
 
   return (
     <div
@@ -328,12 +294,12 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
       }}
     >
       <div style={{ margin: "8px" }}>
-        <button onClick={() => dispatch(Msg_Undo())} disabled={!canUndo}>
+        <button onClick={() => dispatch(Msg_Undo())} disabled={!viewModel.CanUndo(state)}>
           Undo
         </button>
         <button
           onClick={() => dispatch(Msg_Redo())}
-          disabled={!canRedo}
+          disabled={!viewModel.CanRedo(state)}
           style={{ marginLeft: "8px" }}
         >
           Redo
@@ -343,7 +309,7 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
         <Canvas
           camera={{ position: [0, 0, 6], fov: 50 }}
           shadows
-          onPointerMissed={handleBackgroundClick}
+          onPointerMissed={() => dispatch(Msg_DeselectAll())}
         >
           {/* Ambient light for general illumination */}
           <ambientLight intensity={0.7} />
@@ -351,18 +317,19 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
           <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
           {/* Additional point light for more dynamic lighting */}
           <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-          <OrbitControls enabled={shouldEnableOrbitControls} />
+          <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
           <group position={[0, 1, 0]}>
             <DragControls
               autoTransform={false}
               axisLock="z"
-              onDragStart={handleDragStart}
+              onDragStart={(origin) => dispatch(Msg_StartDrag(origin.x, origin.y, origin.z))}
               onDrag={handleDrag}
-              onDragEnd={handleDragEnd}
+              onDragEnd={() => dispatch(Msg_EndDrag())}
             >
-              {renderedDraggableNodes}
+              {draggableNodes}
             </DragControls>
-            {tree}
+            {staticNodes}
+            {familyGroups}
           </group>
         </Canvas>
       </div>
