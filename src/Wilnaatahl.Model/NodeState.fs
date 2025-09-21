@@ -1,10 +1,14 @@
 namespace Wilnaatahl.ViewModel
 
 open Wilnaatahl.Model
+open Fable.Core
+
+[<Erase>]
+type NodeId = NodeId of int
 
 /// Represents a node in the tree.
 type TreeNode =
-    { id: string
+    { id: NodeId
       position: float * float * float
       person: Person }
 
@@ -12,36 +16,42 @@ type TreeNode =
 module NodeState =
     type NodeState =
         private
-            { nodes: Map<string, TreeNode>
-              selectedNodeId: string option }
+            { nodes: Map<int, TreeNode>
+              selectedNodeId: int option }
 
     let createNodeState nodes =
-        { nodes = nodes; selectedNodeId = None }
+        let nodeIdToInt (NodeId nodeId) = nodeId
 
-    let isSelected nodeId state =
+        { nodes =
+            nodes
+            |> Seq.map (fun node -> nodeIdToInt node.id, node)
+            |> Map.ofSeq
+          selectedNodeId = None }
+
+    let isSelected (NodeId nodeId) state =
         match state.selectedNodeId with
         | Some id when id = nodeId -> true
         | _ -> false
 
-    let deselect nodeId state =
+    let deselect (NodeId nodeId) state =
         match state.selectedNodeId with
         | Some id when id = nodeId -> { state with selectedNodeId = None }
         | _ -> state
 
     let deselectAll state = { state with selectedNodeId = None }
 
-    let findNode nodeId state = Map.find nodeId state.nodes
+    let findNode (NodeId nodeId) state = Map.find nodeId state.nodes
 
-    let select nodeId state =
+    let select (NodeId nodeId) state =
         { state with selectedNodeId = Some nodeId }
 
     let selected state =
         state.selectedNodeId
         |> Option.toList
-        |> List.map (fun id -> findNode id state)
+        |> List.map (fun id -> findNode (NodeId id) state)
         |> Seq.ofList
 
-    let setNode nodeId node state =
+    let setNode (NodeId nodeId) node state =
         assert (state.nodes |> Map.containsKey nodeId)
         { state with nodes = state.nodes |> Map.add nodeId node }
 

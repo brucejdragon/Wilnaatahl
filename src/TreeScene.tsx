@@ -18,12 +18,10 @@ import {
   ViewModel,
 } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
-import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
-import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map.js";
 
 type TreeSceneProps = {
-  initialNodes: FSharpMap<string, TreeNode>;
-  initialFamilies: FSharpList<Family>;
+  initialNodes: Iterable<TreeNode>;
+  initialFamilies: Iterable<Family>;
 };
 
 function TreeNodeMesh({
@@ -102,6 +100,10 @@ function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
   );
 }
 
+function makeFamilyId(parent1: TreeNode, parent2: TreeNode): string {
+  return `${parent1.id}-${parent2.id}-family`;
+}
+
 function ChildrenGroup({
   familyId,
   position, // Location of the top of vertical connector that goes down to the children.
@@ -166,12 +168,10 @@ function ChildrenGroup({
 }
 
 function FamilyGroup({
-  familyId,
   parent1,
   parent2,
   children,
 }: {
-  familyId: string;
   parent1: TreeNode;
   parent2: TreeNode;
   children: Iterable<TreeNode>;
@@ -197,6 +197,7 @@ function FamilyGroup({
   // Calculate the midpoint of the bottom connector between the parents.
   // We'll need this for the position of the child connector group.
   const verticalConnectorStart = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
+  const familyId = makeFamilyId(parent1, parent2);
 
   return (
     <group>
@@ -228,10 +229,10 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
     viewModel.CreateInitialViewState
   );
 
-  const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
+  const handlePointerDown = (id: number) => (e: ThreeEvent<PointerEvent>) => {
     dispatch(Msg_TouchNode(id));
   };
-  const handleNodeClick = (id: string) => (e: ThreeEvent<MouseEvent>) => {
+  const handleNodeClick = (id: number) => (e: ThreeEvent<MouseEvent>) => {
     dispatch(Msg_SelectNode(id));
     e.stopPropagation();
   };
@@ -265,10 +266,11 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
   const familyGroups: JSX.Element[] = [];
   for (const family of viewModel.EnumerateFamilies(state)) {
     const parents = viewModel.EnumerateParents(state, family);
+    const parent1 = parents[0];
+    const parent2 = parents[1];
     familyGroups.push(
       <FamilyGroup
-        key={family.id}
-        familyId={family.id}
+        key={makeFamilyId(parent1, parent2)}
         parent1={parents[0]}
         parent2={parents[1]}
         children={viewModel.EnumerateChildren(state, family)}

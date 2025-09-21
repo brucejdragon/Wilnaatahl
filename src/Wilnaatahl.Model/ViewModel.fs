@@ -5,9 +5,8 @@ open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.ViewModel.UndoableState
 
 type Family =
-    { id: string
-      parents: string * string
-      children: string list }
+    { parents: NodeId * NodeId
+      children: NodeId list }
 
 type DragState =
     | Dragging of offset: float * float * float
@@ -21,11 +20,11 @@ type DragState =
         | Dragging _ -> false
 
 type Msg =
-    | SelectNode of string
+    | SelectNode of NodeId
     | DeselectAll
     | StartDrag of origin: float * float * float
     | DragTo of position: float * float * float
-    | TouchNode of string // In this context, "touch" means "pointer down".
+    | TouchNode of NodeId // In this context, "touch" means "pointer down".
     | EndDrag
     | Undo
     | Redo
@@ -34,7 +33,7 @@ type ViewState =
     { history: UndoableState<NodeState>
       families: Family list
       drag: DragState
-      lastTouchedNodeId: string option }
+      lastTouchedNodeId: NodeId option }
 
     static member Update state msg =
         let nodes = current state.history
@@ -107,7 +106,7 @@ type ViewState =
 type IViewModel =
     abstract CanRedo: ViewState -> bool
     abstract CanUndo: ViewState -> bool
-    abstract CreateInitialViewState: (Map<string, TreeNode> * seq<Family>) -> ViewState
+    abstract CreateInitialViewState: (seq<TreeNode> * seq<Family>) -> ViewState
     abstract EnumerateFamilies: ViewState -> seq<Family>
     abstract EnumerateChildren: ViewState -> Family -> seq<TreeNode>
     abstract EnumerateParents: ViewState -> Family -> TreeNode * TreeNode
@@ -154,29 +153,23 @@ type ViewModel() =
 
 module Initial =
     let nodes =
-        [ "root1",
-          { id = "root1"
+        [ { id = NodeId 0
             position = -1.0, 0.0, 0.0
             person = people[0] }
-          "root2",
-          { id = "root2"
+          { id = NodeId 1
             position = 1.0, 0.0, 0.0
             person = people[1] }
-          "child1",
-          { id = "child1"
+          { id = NodeId 2
             position = -2.0, -2.0, 0.0
             person = people[2] }
-          "child2",
-          { id = "child2"
+          { id = NodeId 3
             position = 0.0, -2.0, 0.0
             person = people[3] }
-          "child3",
-          { id = "child3"
+          { id = NodeId 4
             position = 2.0, -2.0, 0.0
             person = people[4] } ]
-        |> Map.ofList
+        |> Seq.ofList
 
     let families =
-        [ { id = "family"
-            parents = "root1", "root2"
-            children = [ "child1"; "child2"; "child3" ] } ]
+        [ { parents = NodeId 0, NodeId 1
+            children = [ NodeId 2; NodeId 3; NodeId 4 ] } ]
