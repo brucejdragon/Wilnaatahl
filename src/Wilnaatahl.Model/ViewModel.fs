@@ -46,9 +46,7 @@ type ViewState =
                 match state.drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with
-                        history = nodes |> deselect nodeId |> commit
-                        drag = NotDragging }
+                    { state with history = nodes |> deselect nodeId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
                     { state with drag = NotDragging }
@@ -93,11 +91,15 @@ type ViewState =
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
-            // Drag is ending; Flush the redo history to avoid massive time-travel
-            // confusion for the user.
-            { state with
-                history = clearRedo state.history
-                drag = DragEnding }
+            match state.drag with
+            | Dragging _ ->
+                // Drag is ending; Flush the redo history to avoid massive time-travel
+                // confusion for the user.
+                { state with
+                    history = clearRedo state.history
+                    drag = DragEnding }
+            | DragEnding
+            | NotDragging -> state // This can happen on de-selection clicks, so ignore it.
         | TouchNode nodeId -> { state with lastTouchedNodeId = Some nodeId }
         | Undo -> { state with history = undo state.history }
         | Redo -> { state with history = redo state.history }
@@ -105,11 +107,12 @@ type ViewState =
 type IViewModel =
     abstract CanRedo: ViewState -> bool
     abstract CanUndo: ViewState -> bool
-    abstract CreateInitialViewState: Map<string, TreeNode> -> seq<Branch> -> ViewState
+    abstract CreateInitialViewState: (Map<string, TreeNode> * seq<Branch>) -> ViewState
     abstract EnumerateBranches: ViewState -> seq<Branch>
     abstract EnumerateChildren: ViewState -> Branch -> seq<TreeNode>
     abstract EnumerateParents: ViewState -> Branch -> TreeNode * TreeNode
-    abstract EnumerateTreeNodes: ViewState -> seq<TreeNode * bool>
+    abstract EnumerateSelectedTreeNodes: ViewState -> seq<TreeNode>
+    abstract EnumerateUnselectedTreeNodes: ViewState -> seq<TreeNode>
     abstract ShouldEnableOrbitControls: ViewState -> bool
     abstract Update: ViewState -> Msg -> ViewState
 
@@ -118,7 +121,8 @@ type ViewModel() =
         member _.CanRedo state = canRedo state.history
         member _.CanUndo state = canUndo state.history
 
-        member _.CreateInitialViewState nodes branches =
+        // This is intentionally a single argument of tuple type so that useReducer can pass in a single value.
+        member _.CreateInitialViewState((nodes, branches)) =
             { history = createNodeState nodes |> createUndoableState
               branches = List.ofSeq branches
               drag = NotDragging
@@ -140,7 +144,9 @@ type ViewModel() =
             let parent2 = nodes |> findNode parent2Id
             parent1, parent2
 
-        member _.EnumerateTreeNodes state = state.history |> current |> values
+        member _.EnumerateSelectedTreeNodes state = state.history |> current |> selected
+
+        member _.EnumerateUnselectedTreeNodes state = state.history |> current |> unselected
 
         member _.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
 

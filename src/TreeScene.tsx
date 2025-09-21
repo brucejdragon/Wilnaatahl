@@ -28,19 +28,19 @@ type TreeSceneProps = {
 };
 
 function TreeNodeMesh({
-  position,
-  person,
-  isSelected = false,
+  node,
+  isSelected,
   onClick,
   onPointerDown,
 }: {
-  position: [number, number, number];
-  person: Person;
+  node: TreeNode;
   isSelected: boolean;
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const selectedNodeColour = "#8B4000"; // Deep, red copper
+  const person = node.person;
+  const position = node.position;
   const label = defaultArg(person.label, undefined);
   return (
     <>
@@ -141,8 +141,11 @@ function calculateParentConnectorSegments(
 
 export default function TreeScene({ initialNodes, initialBranches }: TreeSceneProps) {
   const viewModel = new ViewModel();
-  const initialState = viewModel.CreateInitialViewState(initialNodes, initialBranches);
-  const [state, dispatch] = React.useReducer(viewModel.Update, initialState);
+  const [state, dispatch] = React.useReducer(
+    viewModel.Update,
+    [initialNodes, initialBranches],
+    viewModel.CreateInitialViewState
+  );
 
   const handlePointerDown = (id: string) => (e: ThreeEvent<PointerEvent>) => {
     dispatch(Msg_TouchNode(id));
@@ -167,26 +170,31 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   };
 
   const renderedStaticNodes: JSX.Element[] = [];
-  const renderedDraggableNodes: JSX.Element[] = [];
-  for (const nodeInfo of viewModel.EnumerateTreeNodes(state)) {
-    const node = nodeInfo[0];
-    const isSelected = nodeInfo[1];
+  for (const node of viewModel.EnumerateUnselectedTreeNodes(state)) {
     const id = node.id;
-    const renderedNode = (
+    renderedStaticNodes.push(
       <TreeNodeMesh
         key={id}
-        position={node.position}
-        person={node.person}
-        isSelected={isSelected}
+        node={node}
+        isSelected={false}
         onClick={handleNodeClick(id)}
         onPointerDown={handlePointerDown(id)}
       />
     );
-    if (isSelected) {
-      renderedDraggableNodes.push(renderedNode);
-    } else {
-      renderedStaticNodes.push(renderedNode);
-    }
+  }
+
+  const renderedDraggableNodes: JSX.Element[] = [];
+  for (const node of viewModel.EnumerateSelectedTreeNodes(state)) {
+    const id = node.id;
+    renderedDraggableNodes.push(
+      <TreeNodeMesh
+        key={id}
+        node={node}
+        isSelected={true}
+        onClick={handleNodeClick(id)}
+        onPointerDown={handlePointerDown(id)}
+      />
+    );
   }
 
   const connectors: JSX.Element[] = [];

@@ -45,7 +45,7 @@ module NodeState =
         assert (state.nodes |> Map.containsKey nodeId)
         { state with nodes = state.nodes |> Map.add nodeId node }
 
-    let values state =
+    let unselected state =
         state.nodes
         |> Map.values
-        |> Seq.map (fun node -> node, state |> isSelected node.id)
+        |> Seq.filter (fun node -> not (state |> isSelected node.id))
