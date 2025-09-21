@@ -4,7 +4,7 @@ open Wilnaatahl.Model.Initial
 open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.ViewModel.UndoableState
 
-type Branch =
+type Family =
     { id: string
       parents: string * string
       children: string list }
@@ -32,7 +32,7 @@ type Msg =
 
 type ViewState =
     { history: UndoableState<NodeState>
-      branches: Branch list
+      families: Family list
       drag: DragState
       lastTouchedNodeId: string option }
 
@@ -107,10 +107,10 @@ type ViewState =
 type IViewModel =
     abstract CanRedo: ViewState -> bool
     abstract CanUndo: ViewState -> bool
-    abstract CreateInitialViewState: (Map<string, TreeNode> * seq<Branch>) -> ViewState
-    abstract EnumerateBranches: ViewState -> seq<Branch>
-    abstract EnumerateChildren: ViewState -> Branch -> seq<TreeNode>
-    abstract EnumerateParents: ViewState -> Branch -> TreeNode * TreeNode
+    abstract CreateInitialViewState: (Map<string, TreeNode> * seq<Family>) -> ViewState
+    abstract EnumerateFamilies: ViewState -> seq<Family>
+    abstract EnumerateChildren: ViewState -> Family -> seq<TreeNode>
+    abstract EnumerateParents: ViewState -> Family -> TreeNode * TreeNode
     abstract EnumerateSelectedTreeNodes: ViewState -> seq<TreeNode>
     abstract EnumerateUnselectedTreeNodes: ViewState -> seq<TreeNode>
     abstract ShouldEnableOrbitControls: ViewState -> bool
@@ -122,24 +122,24 @@ type ViewModel() =
         member _.CanUndo state = canUndo state.history
 
         // This is intentionally a single argument of tuple type so that useReducer can pass in a single value.
-        member _.CreateInitialViewState((nodes, branches)) =
+        member _.CreateInitialViewState((nodes, families)) =
             { history = createNodeState nodes |> createUndoableState
-              branches = List.ofSeq branches
+              families = List.ofSeq families
               drag = NotDragging
               lastTouchedNodeId = None }
 
-        member _.EnumerateBranches state = state.branches
+        member _.EnumerateFamilies state = state.families
 
-        member _.EnumerateChildren state branch =
+        member _.EnumerateChildren state family =
             let nodes = current state.history
 
-            branch.children
+            family.children
             |> List.map (fun childId -> nodes |> findNode childId)
             |> List.toSeq
 
-        member _.EnumerateParents state branch =
+        member _.EnumerateParents state family =
             let nodes = current state.history
-            let parent1Id, parent2Id = branch.parents
+            let parent1Id, parent2Id = family.parents
             let parent1 = nodes |> findNode parent1Id
             let parent2 = nodes |> findNode parent2Id
             parent1, parent2
@@ -176,7 +176,7 @@ module Initial =
             person = people[4] } ]
         |> Map.ofList
 
-    let branches =
-        [ { id = "branch"
+    let families =
+        [ { id = "family"
             parents = "root1", "root2"
             children = [ "child1"; "child2"; "child3" ] } ]

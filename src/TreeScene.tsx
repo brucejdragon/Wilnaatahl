@@ -6,7 +6,7 @@ import React from "react";
 import * as THREE from "three";
 import { TreeNode } from "./generated/NodeState";
 import {
-  ViewModel,
+  Family,
   Msg_SelectNode,
   Msg_DeselectAll,
   Msg_TouchNode,
@@ -15,7 +15,7 @@ import {
   Msg_EndDrag,
   Msg_Undo,
   Msg_Redo,
-  Branch,
+  ViewModel,
 } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 import { FSharpList } from "./generated/fable_modules/fable-library-ts.4.25.0/List.js";
@@ -23,7 +23,7 @@ import { FSharpMap } from "./generated/fable_modules/fable-library-ts.4.25.0/Map
 
 type TreeSceneProps = {
   initialNodes: FSharpMap<string, TreeNode>;
-  initialBranches: FSharpList<Branch>;
+  initialFamilies: FSharpList<Family>;
 };
 
 function TreeNodeMesh({
@@ -103,11 +103,11 @@ function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
 }
 
 function ChildrenGroup({
-  branchId,
+  familyId,
   position, // Location of the top of vertical connector that goes down to the children.
   children,
 }: {
-  branchId: string;
+  familyId: string;
   position: THREE.Vector3;
   children: Iterable<TreeNode>;
 }) {
@@ -124,11 +124,11 @@ function ChildrenGroup({
   const branchPosition = new THREE.Vector3(position.x, highestChildY + 0.65, position.z);
   const connectors: JSX.Element[] = [];
   connectors.push(
-    <ConnectorMesh key={`vertical-to-branch-${branchId}`} from={position} to={branchPosition} />
+    <ConnectorMesh key={`${familyId}-vertical-to-branch`} from={position} to={branchPosition} />
   );
 
-  // Add connectors from the branch node to each child node. Unless a child node is directly below
-  // the branch node, a right-angle connector with sphere "elbow" is needed.
+  // Add connectors from the branch position to each child node. Unless a child node is directly below
+  // the branch position, a right-angle connector with sphere "elbow" is needed.
   var childrenDirectlyBelow = 0;
   for (const child of children) {
     const childPosition = new THREE.Vector3(...child.position);
@@ -142,7 +142,7 @@ function ChildrenGroup({
       connectors.push(
         <ConnectorMesh key={`branch-to-${childId}-junction`} from={branchPosition} to={junction} />
       );
-      connectors.push(<ElbowSphereMesh key={`junction-sphere-${childId}`} position={junction} />);
+      connectors.push(<ElbowSphereMesh key={`${childId}-junction-sphere`} position={junction} />);
       childConnectorKey = `junction-to-${childId}`;
     } else {
       // Child is directly below branch, so a straight connector suffices, and we won't
@@ -158,7 +158,7 @@ function ChildrenGroup({
   // at the branch end of the connector.
   if (childrenDirectlyBelow === 0) {
     connectors.push(
-      <ElbowSphereMesh key={`junction-sphere-${branchId}`} position={branchPosition} />
+      <ElbowSphereMesh key={`${familyId}-junction-sphere`} position={branchPosition} />
     );
   }
 
@@ -166,12 +166,12 @@ function ChildrenGroup({
 }
 
 function FamilyGroup({
-  branchId,
+  familyId,
   parent1,
   parent2,
   children,
 }: {
-  branchId: string;
+  familyId: string;
   parent1: TreeNode;
   parent2: TreeNode;
   children: Iterable<TreeNode>;
@@ -194,8 +194,8 @@ function FamilyGroup({
   const parent2Top = p2.clone().add(offset);
   const parent2Bottom = p2.clone().sub(offset);
 
-  // Calculate the branch position dynamically based on the highest child node and
-  // midpoint of the bottom connector between the parents.
+  // Calculate the midpoint of the bottom connector between the parents.
+  // We'll need this for the position of the child connector group.
   const verticalConnectorStart = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
 
   return (
@@ -211,8 +211,8 @@ function FamilyGroup({
         to={parent2Bottom}
       />
       <ChildrenGroup
-        key={`children-of-${branchId}`}
-        branchId={branchId}
+        key={`${familyId}-children`}
+        familyId={familyId}
         position={verticalConnectorStart}
         children={children}
       />
@@ -220,11 +220,11 @@ function FamilyGroup({
   );
 }
 
-export default function TreeScene({ initialNodes, initialBranches }: TreeSceneProps) {
+export default function TreeScene({ initialNodes, initialFamilies }: TreeSceneProps) {
   const viewModel = new ViewModel();
   const [state, dispatch] = React.useReducer(
     viewModel.Update,
-    [initialNodes, initialBranches],
+    [initialNodes, initialFamilies],
     viewModel.CreateInitialViewState
   );
 
@@ -263,15 +263,15 @@ export default function TreeScene({ initialNodes, initialBranches }: TreeScenePr
   }
 
   const familyGroups: JSX.Element[] = [];
-  for (const branch of viewModel.EnumerateBranches(state)) {
-    const parents = viewModel.EnumerateParents(state, branch);
+  for (const family of viewModel.EnumerateFamilies(state)) {
+    const parents = viewModel.EnumerateParents(state, family);
     familyGroups.push(
       <FamilyGroup
-        key={`family-of-${branch.id}`}
-        branchId={branch.id}
+        key={family.id}
+        familyId={family.id}
         parent1={parents[0]}
         parent2={parents[1]}
-        children={viewModel.EnumerateChildren(state, branch)}
+        children={viewModel.EnumerateChildren(state, family)}
       />
     );
   }
