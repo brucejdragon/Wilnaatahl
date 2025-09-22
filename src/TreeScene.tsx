@@ -9,6 +9,7 @@ import {
   Family,
   Msg_SelectNode,
   Msg_DeselectAll,
+  Msg_ToggleSelection,
   Msg_TouchNode,
   Msg_StartDrag,
   Msg_DragTo,
@@ -305,6 +306,17 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
           style={{ marginLeft: "8px" }}
         >
           Redo
+        </button>
+        <button
+          style={{ marginLeft: "8px" }}
+          onClick={() => {
+            const nextMode = viewModel.IsSingleSelectEnabled(state)
+              ? "multiSelect"
+              : "singleSelect";
+            dispatch(Msg_ToggleSelection(nextMode));
+          }}
+        >
+          {viewModel.IsSingleSelectEnabled(state) ? "Multi-select" : "Single-select"}
         </button>
       </div>
       <div style={{ flex: 1, width: "100%", height: "100%" }}>

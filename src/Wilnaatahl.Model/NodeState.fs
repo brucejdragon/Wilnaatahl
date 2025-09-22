@@ -17,45 +17,75 @@ module NodeState =
     type NodeState =
         private
             { nodes: Map<int, TreeNode>
-              selectedNodeId: int option }
+              selectedNodes: Map<int, TreeNode> }
+
+    let private nodeIdToInt (NodeId nodeId) = nodeId
 
     let createNodeState nodes =
-        let nodeIdToInt (NodeId nodeId) = nodeId
-
         { nodes =
             nodes
             |> Seq.map (fun node -> nodeIdToInt node.id, node)
             |> Map.ofSeq
-          selectedNodeId = None }
-
-    let isSelected (NodeId nodeId) state =
-        match state.selectedNodeId with
-        | Some id when id = nodeId -> true
-        | _ -> false
+          selectedNodes = Map.empty }
 
     let deselect (NodeId nodeId) state =
-        match state.selectedNodeId with
-        | Some id when id = nodeId -> { state with selectedNodeId = None }
-        | _ -> state
+        match state.selectedNodes |> Map.tryFind nodeId with
+        | Some node ->
+            { state with
+                selectedNodes = state.selectedNodes |> Map.remove nodeId
+                nodes = state.nodes |> Map.add nodeId node }
+        | None -> state
 
-    let deselectAll state = { state with selectedNodeId = None }
+    let deselectAll state =
+        let add ns node =
+            ns |> Map.add (nodeIdToInt node.id) node
 
-    let findNode (NodeId nodeId) state = Map.find nodeId state.nodes
+        let newNodes =
+            state.selectedNodes.Values
+            |> Seq.fold add state.nodes
+
+        { state with
+            selectedNodes = Map.empty
+            nodes = newNodes }
+
+    let findNode (NodeId nodeId) state =
+        // Look in selectedNodes first, then nodes. This is on the theory that
+        // lookups are more frequent when updating the positions of selected nodes
+        // during a drag operation.
+        match state.selectedNodes |> Map.tryFind nodeId with
+        | Some node -> node
+        | None -> Map.find nodeId state.nodes
+
+    let isSelected (NodeId nodeId) state =
+        state.selectedNodes |> Map.containsKey nodeId
 
     let select (NodeId nodeId) state =
-        { state with selectedNodeId = Some nodeId }
+        match state.nodes |> Map.tryFind nodeId with
+        | Some node ->
+            { state with
+                selectedNodes = state.selectedNodes |> Map.add nodeId node
+                nodes = state.nodes |> Map.remove nodeId }
+        | None -> state
 
     let selected state =
-        state.selectedNodeId
-        |> Option.toList
-        |> List.map (fun id -> findNode (NodeId id) state)
-        |> Seq.ofList
+        state.selectedNodes |> Map.values :> seq<TreeNode>
 
     let setNode (NodeId nodeId) node state =
-        assert (state.nodes |> Map.containsKey nodeId)
-        { state with nodes = state.nodes |> Map.add nodeId node }
+        let isNodeToSetSelected = state.selectedNodes |> Map.containsKey nodeId
+
+        assert
+            (state.nodes |> Map.containsKey nodeId
+             || isNodeToSetSelected)
+
+        let newSelectedNodes, newNodes =
+            if isNodeToSetSelected then
+                state.selectedNodes |> Map.add nodeId node, state.nodes
+            else
+                state.selectedNodes, state.nodes |> Map.add nodeId node
+
+        { state with
+            nodes = newNodes
+            selectedNodes = newSelectedNodes }
 
     let unselected state =
-        state.nodes
-        |> Map.values
-        |> Seq.filter (fun node -> not (state |> isSelected node.id))
+        state.nodes |> Map.values :> seq<TreeNode>

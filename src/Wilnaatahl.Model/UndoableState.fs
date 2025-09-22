@@ -19,9 +19,6 @@ module UndoableState =
 
     let clearRedo state = { state with future = [] }
 
-    let copyCurrentToUndo state =
-        { state with past = state.present :: state.past }
-
     let redo state =
         match state.future with
         | next :: rest ->
@@ -29,6 +26,9 @@ module UndoableState =
               present = next
               future = rest }
         | [] -> state
+
+    let saveForUndo newPast state =
+        { state with past = newPast :: state.past }
 
     let setCurrent newPresent state =
         // Keep past and future as is.

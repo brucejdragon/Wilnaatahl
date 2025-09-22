@@ -3,6 +3,7 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model.Initial
 open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.ViewModel.UndoableState
+open Fable.Core
 
 type Family =
     { parents: NodeId * NodeId
@@ -19,13 +20,23 @@ type DragState =
         | DragEnding
         | Dragging _ -> false
 
+[<StringEnum>]
+type SelectionMode =
+    | SingleSelect
+    | MultiSelect
+    member this.IsSingleSelectEnabled =
+        match this with
+        | SingleSelect -> true
+        | MultiSelect -> false
+
 type Msg =
     | SelectNode of NodeId
     | DeselectAll
     | StartDrag of origin: float * float * float
     | DragTo of position: float * float * float
-    | TouchNode of NodeId // In this context, "touch" means "pointer down".
     | EndDrag
+    | ToggleSelection of SelectionMode
+    | TouchNode of NodeId // In this context, "touch" means "pointer down".
     | Undo
     | Redo
 
@@ -33,7 +44,8 @@ type ViewState =
     { history: UndoableState<NodeState>
       families: Family list
       drag: DragState
-      lastTouchedNodeId: NodeId option }
+      lastTouchedNodeId: NodeId option
+      selectionMode: SelectionMode }
 
     static member Update state msg =
         let nodes = current state.history
@@ -51,10 +63,18 @@ type ViewState =
                     { state with drag = NotDragging }
                 | Dragging _ -> state // Shouldn't happen, so ignore it.
             else
-                // Select new node, either for the first time or replacing previous selection
-                { state with
-                    history = nodes |> select nodeId |> commit
-                    drag = NotDragging }
+                // Select new node:
+                // - In SingleSelect mode, this either selects a node for the first time or replaces the previous selection.
+                // - In MultiSelect mode, this adds to the current selection.
+                match state.selectionMode with
+                | SingleSelect ->
+                    { state with
+                        history = nodes |> deselectAll |> select nodeId |> commit
+                        drag = NotDragging }
+                | MultiSelect ->
+                    { state with
+                        history = nodes |> select nodeId |> commit
+                        drag = NotDragging }
         | DeselectAll ->
             { state with
                 history = nodes |> deselectAll |> commit
@@ -69,24 +89,36 @@ type ViewState =
                 let offset = nx - px, ny - py, nz - pz
 
                 // Use this opportunity to save the current node positions before
-                // they start changing for undo/redo.
+                // they start changing for undo/redo. Make sure the selection is
+                // cleared before saving, since that shouldn't really be part of the
+                // undo/redo history.
                 { state with
-                    history = state.history |> copyCurrentToUndo
+                    history = state.history |> saveForUndo (deselectAll nodes)
                     drag = Dragging offset }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
             match state.drag with
             | Dragging (ox, oy, oz) ->
-                let updateNodePosition nodeState node =
-                    let newPos = px + ox, py + oy, pz + oz
-                    let updatedNode = { node with position = newPos }
-                    nodeState |> setNode node.id updatedNode
+                match state.lastTouchedNodeId with
+                | Some nodeId ->
+                    // Find the original position of the dragged node
+                    let origNode = nodes |> findNode nodeId
+                    let origX, origY, origZ = origNode.position
+                    let newX, newY, newZ = px + ox, py + oy, pz + oz
+                    let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
 
-                let updatedNodes =
-                    selected nodes
-                    |> Seq.fold updateNodePosition nodes
+                    let updateNodePosition nodeState node =
+                        let nx, ny, nz = node.position
+                        let newPos = nx + dx, ny + dy, nz + dz
+                        let updatedNode = { node with position = newPos }
+                        nodeState |> setNode node.id updatedNode
 
-                { state with history = commit updatedNodes }
+                    let updatedNodes =
+                        selected nodes
+                        |> Seq.fold updateNodePosition nodes
+
+                    { state with history = commit updatedNodes }
+                | None -> state
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
@@ -99,6 +131,12 @@ type ViewState =
                     drag = DragEnding }
             | DragEnding
             | NotDragging -> state // This can happen on de-selection clicks, so ignore it.
+        | ToggleSelection mode ->
+            // We clear the selection when toggling selection mode so you don't end up
+            // confusing the user by having multiple nodes selected when in single-selection mode.
+            { state with
+                history = nodes |> deselectAll |> commit
+                selectionMode = mode }
         | TouchNode nodeId -> { state with lastTouchedNodeId = Some nodeId }
         | Undo -> { state with history = undo state.history }
         | Redo -> { state with history = redo state.history }
@@ -112,6 +150,7 @@ type IViewModel =
     abstract EnumerateParents: ViewState -> Family -> TreeNode * TreeNode
     abstract EnumerateSelectedTreeNodes: ViewState -> seq<TreeNode>
     abstract EnumerateUnselectedTreeNodes: ViewState -> seq<TreeNode>
+    abstract IsSingleSelectEnabled: ViewState -> bool
     abstract ShouldEnableOrbitControls: ViewState -> bool
     abstract Update: ViewState -> Msg -> ViewState
 
@@ -125,7 +164,8 @@ type ViewModel() =
             { history = createNodeState nodes |> createUndoableState
               families = List.ofSeq families
               drag = NotDragging
-              lastTouchedNodeId = None }
+              lastTouchedNodeId = None
+              selectionMode = SingleSelect }
 
         member _.EnumerateFamilies state = state.families
 
@@ -146,6 +186,9 @@ type ViewModel() =
         member _.EnumerateSelectedTreeNodes state = state.history |> current |> selected
 
         member _.EnumerateUnselectedTreeNodes state = state.history |> current |> unselected
+
+        member _.IsSingleSelectEnabled state =
+            state.selectionMode.IsSingleSelectEnabled
 
         member _.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
 
