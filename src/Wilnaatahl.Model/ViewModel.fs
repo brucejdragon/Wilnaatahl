@@ -107,16 +107,12 @@ type ViewState =
                     let newX, newY, newZ = px + ox, py + oy, pz + oz
                     let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
 
-                    let updateNodePosition nodeState node =
+                    let updateNodePosition node =
                         let nx, ny, nz = node.position
                         let newPos = nx + dx, ny + dy, nz + dz
-                        let updatedNode = { node with position = newPos }
-                        nodeState |> setNode node.id updatedNode
+                        { node with position = newPos }
 
-                    let updatedNodes =
-                        selected nodes
-                        |> Seq.fold updateNodePosition nodes
-
+                    let updatedNodes = nodes |> mapSelected updateNodePosition
                     { state with history = commit updatedNodes }
                 | None -> state
             | DragEnding

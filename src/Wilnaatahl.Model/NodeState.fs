@@ -59,6 +59,10 @@ module NodeState =
     let isSelected (NodeId nodeId) state =
         state.selectedNodes |> Map.containsKey nodeId
 
+    let mapSelected f state =
+        let mappedNodes = state.selectedNodes |> Map.map (fun _ n -> f n)
+        { state with selectedNodes = mappedNodes }
+
     let select (NodeId nodeId) state =
         match state.nodes |> Map.tryFind nodeId with
         | Some node ->
@@ -69,23 +73,6 @@ module NodeState =
 
     let selected state =
         state.selectedNodes |> Map.values :> seq<TreeNode>
-
-    let setNode (NodeId nodeId) node state =
-        let isNodeToSetSelected = state.selectedNodes |> Map.containsKey nodeId
-
-        assert
-            (state.nodes |> Map.containsKey nodeId
-             || isNodeToSetSelected)
-
-        let newSelectedNodes, newNodes =
-            if isNodeToSetSelected then
-                state.selectedNodes |> Map.add nodeId node, state.nodes
-            else
-                state.selectedNodes, state.nodes |> Map.add nodeId node
-
-        { state with
-            nodes = newNodes
-            selectedNodes = newSelectedNodes }
 
     let unselected state =
         state.nodes |> Map.values :> seq<TreeNode>
