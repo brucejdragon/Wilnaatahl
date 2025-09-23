@@ -68,7 +68,7 @@ jspm_packages/
 web_modules/
 
 # Exclude generated Fable output
-src/generated/
+**/generated/
 
 # TypeScript cache
 *.tsbuildinfo

@@ -27,8 +27,8 @@ module UndoableState =
               future = rest }
         | [] -> state
 
-    let saveForUndo newPast state =
-        { state with past = newPast :: state.past }
+    let saveForUndo f state =
+        { state with past = (f state.present) :: state.past }
 
     let setCurrent newPresent state =
         // Keep past and future as is.

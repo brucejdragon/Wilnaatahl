@@ -70,21 +70,9 @@ npm install
 
 This installs all dependencies listed in `package.json`, including React, Three.js, and Vite.
 
-#### Install Node.js type definitions (required for build)
-
-```powershell
-npm install --save-dev @types/node
-```
-
 ### ✅ 5. Set Up Prettier for Code Formatting
 
 Prettier is used to automatically format TypeScript, JavaScript, and .tsx files for consistency.
-
-Install Prettier as a dev dependency:
-
-```powershell
-npm install --save-dev prettier
-```
 
 To format all supported files in the project, run:
 
@@ -104,7 +92,7 @@ If you want to serve the `dist` folder (after building) with a static server:
 npm install -g serve
 ```
 
-This will start a local static server, typically accessible at: http://localhost:3000
+Running `serve dist` will start a local static server, typically accessible at: http://localhost:3000
 
 ## Commands for Dev Inner Loop
 
@@ -113,3 +101,4 @@ The following terminal commands are your dev inner loop:
 - To build and run in the dev server for iterative development: `npm run dev`
 - To build for deployment: `npm run build`
 - To host the deployment-ready build locally for testing: `serve dist`
+- To run unit tests: `npm test`
