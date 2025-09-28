@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Include="UndoableStateTests.fs" />
+    <Compile Include="NodeStateTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
