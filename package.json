@@ -10,7 +10,7 @@
     "preview": "npm run fable && vite preview",
     "pretest": "dotnet fable --outDir ../generated --cwd ./tests/Wilnaatahl.Model.Tests",
     "test": "mocha ./tests/generated",
-    "coverage": "(pushd .\\tests\\generated && c8 mocha .)"
+    "coverage": "(pushd .\\tests\\generated && c8 --all mocha .)"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
