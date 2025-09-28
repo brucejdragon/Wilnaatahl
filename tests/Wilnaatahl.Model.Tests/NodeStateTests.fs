@@ -1,4 +1,4 @@
-module NodeStateTests
+module Wilnaatahl.Tests.NodeStateTests
 
 open Fable.Mocha
 open Wilnaatahl.Model
@@ -23,7 +23,7 @@ let node4 = samplePerson 4 "Dave"
 
 let initialNodes = [ node1; node2; node3; node4 ]
 
-let tests =
+let nodeStateTests =
     testList
         "NodeState"
         [ test "createNodeState initializes nodes and empty selection" {
@@ -120,4 +120,4 @@ let tests =
               Expect.equal unsel (Set.ofList [ NodeId 3; NodeId 4 ]) "Unselected set correct"
           } ]
 
-Mocha.runTests tests |> ignore
+Mocha.runTests nodeStateTests |> ignore

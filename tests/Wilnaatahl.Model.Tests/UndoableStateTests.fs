@@ -1,4 +1,4 @@
-module Wilnaatahl.Model.Tests
+module Wilnaatahl.Model.UndoableStateTests
 
 open Fable.Mocha
 open Wilnaatahl.ViewModel.UndoableState

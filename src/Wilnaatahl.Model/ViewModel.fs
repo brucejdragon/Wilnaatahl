@@ -40,14 +40,49 @@ type Msg =
     | Undo
     | Redo
 
-type ViewState =
-    { history: UndoableState<NodeState>
-      families: Family list
-      drag: DragState
-      lastTouchedNodeId: NodeId option
-      selectionMode: SelectionMode }
+module ViewState =
+    type ViewState =
+        private
+            { history: UndoableState<NodeState>
+              families: Family list
+              drag: DragState
+              lastTouchedNodeId: NodeId option
+              selectionMode: SelectionMode }
 
-    static member Update state msg =
+    let createViewState nodes families =
+        { history = createNodeState nodes |> createUndoableState
+          families = List.ofSeq families
+          drag = NotDragging
+          lastTouchedNodeId = None
+          selectionMode = SingleSelect }
+
+    let canRedo state = canRedo state.history
+    let canUndo state = canUndo state.history
+    let enumerateFamilies state = state.families
+
+    let enumerateChildren state family =
+        let nodes = current state.history
+
+        family.children
+        |> List.map (fun childId -> nodes |> findNode childId)
+        |> List.toSeq
+
+    let enumerateParents state family =
+        let nodes = current state.history
+        let parent1Id, parent2Id = family.parents
+        let parent1 = nodes |> findNode parent1Id
+        let parent2 = nodes |> findNode parent2Id
+        parent1, parent2
+
+    let enumerateSelectedTreeNodes state = state.history |> current |> selected
+    let enumerateUnselectedTreeNodes state = state.history |> current |> unselected
+
+    let isSingleSelectEnabled state =
+        state.selectionMode.IsSingleSelectEnabled
+
+    let shouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+
+    let update state msg =
         let nodes = current state.history
         let commit nodeState = state.history |> setCurrent nodeState
 
@@ -137,6 +172,9 @@ type ViewState =
         | Undo -> { state with history = undo state.history }
         | Redo -> { state with history = redo state.history }
 
+open ViewState
+
+// Wrap ViewState functionality in an interface for easier consumption from TypeScript.
 type IViewModel =
     abstract CanRedo: ViewState -> bool
     abstract CanUndo: ViewState -> bool
@@ -152,43 +190,19 @@ type IViewModel =
 
 type ViewModel() =
     interface IViewModel with
-        member _.CanRedo state = canRedo state.history
-        member _.CanUndo state = canUndo state.history
+        member _.CanRedo state = canRedo state
+        member _.CanUndo state = canUndo state
 
         // This is intentionally a single argument of tuple type so that useReducer can pass in a single value.
-        member _.CreateInitialViewState((nodes, families)) =
-            { history = createNodeState nodes |> createUndoableState
-              families = List.ofSeq families
-              drag = NotDragging
-              lastTouchedNodeId = None
-              selectionMode = SingleSelect }
-
-        member _.EnumerateFamilies state = state.families
-
-        member _.EnumerateChildren state family =
-            let nodes = current state.history
-
-            family.children
-            |> List.map (fun childId -> nodes |> findNode childId)
-            |> List.toSeq
-
-        member _.EnumerateParents state family =
-            let nodes = current state.history
-            let parent1Id, parent2Id = family.parents
-            let parent1 = nodes |> findNode parent1Id
-            let parent2 = nodes |> findNode parent2Id
-            parent1, parent2
-
-        member _.EnumerateSelectedTreeNodes state = state.history |> current |> selected
-
-        member _.EnumerateUnselectedTreeNodes state = state.history |> current |> unselected
-
-        member _.IsSingleSelectEnabled state =
-            state.selectionMode.IsSingleSelectEnabled
-
-        member _.ShouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
-
-        member _.Update state msg = ViewState.Update state msg
+        member _.CreateInitialViewState((nodes, families)) = createViewState nodes families
+        member _.EnumerateFamilies state = enumerateFamilies state
+        member _.EnumerateChildren state family = enumerateChildren state family
+        member _.EnumerateParents state family = enumerateParents state family
+        member _.EnumerateSelectedTreeNodes state = enumerateSelectedTreeNodes state
+        member _.EnumerateUnselectedTreeNodes state = enumerateUnselectedTreeNodes state
+        member _.IsSingleSelectEnabled state = isSingleSelectEnabled state
+        member _.ShouldEnableOrbitControls state = shouldEnableOrbitControls state
+        member _.Update state msg = update state msg
 
 module Initial =
     let nodes =
