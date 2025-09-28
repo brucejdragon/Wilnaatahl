@@ -93,7 +93,7 @@ type ViewState =
                 // cleared before saving, since that shouldn't really be part of the
                 // undo/redo history.
                 { state with
-                    history = state.history |> saveForUndo deselectAll
+                    history = state.history |> saveCurrentForUndo deselectAll
                     drag = Dragging offset }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->

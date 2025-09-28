@@ -15,10 +15,16 @@ module UndoableState =
 
     let canUndo state = not (List.isEmpty state.past)
     let canRedo state = not (List.isEmpty state.future)
+
+    /// Gets the current state.
     let current state = state.present
 
+    /// Clears the stack of redoable (i.e. -- previously undone) states.
+    /// Recommended when an operation that changes the current state completes.
     let clearRedo state = { state with future = [] }
 
+    /// Pops and redos the last undone state, if any.
+    /// The present state becomes the next undoable state.
     let redo state =
         match state.future with
         | next :: rest ->
@@ -27,13 +33,18 @@ module UndoableState =
               future = rest }
         | [] -> state
 
-    let saveForUndo f state =
+    /// Saves the current state for potential undo, applying function f to transform it first.
+    /// The current state remains unchanged; Only the transformed version of it is pushed on
+    /// the undo stack.
+    let saveCurrentForUndo f state =
         { state with past = (f state.present) :: state.past }
 
-    let setCurrent newPresent state =
-        // Keep past and future as is.
-        { state with present = newPresent }
+    /// Sets the current state to a new value.
+    /// The undo and redo stacks remain unchanged.
+    let setCurrent newPresent state = { state with present = newPresent }
 
+    /// Pops and undoes the last saved state, if any.
+    /// The present state becomes the next redoable state.
     let undo state =
         match state.past with
         | prev :: rest ->
