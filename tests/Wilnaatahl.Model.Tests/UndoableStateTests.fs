@@ -15,13 +15,13 @@ let undoableStateTests =
           test "canUndo returns false for new state, true after saveCurrentForUndo" {
               let s = createUndoableState 1
               Expect.isFalse (canUndo s) "Should not be able to undo initially"
-              let s2 = s |> saveCurrentForUndo id
+              let s2 = s |> saveCurrentForUndo
               Expect.isTrue (canUndo s2) "Should be able to undo after saveCurrentForUndo"
           }
           test "canRedo returns false for new state, true after undo" {
               let s =
                   createUndoableState 1
-                  |> saveCurrentForUndo id
+                  |> saveCurrentForUndo
                   |> setCurrent 2
 
               let s2 = undo s
@@ -34,7 +34,7 @@ let undoableStateTests =
           test "clearRedo disables redo after undo" {
               let s =
                   createUndoableState 1
-                  |> saveCurrentForUndo id
+                  |> saveCurrentForUndo
                   |> setCurrent 2
                   |> undo
 
@@ -44,7 +44,7 @@ let undoableStateTests =
           test "redo restores next future state" {
               let s =
                   createUndoableState 1
-                  |> saveCurrentForUndo id
+                  |> saveCurrentForUndo
                   |> setCurrent 2
                   |> undo
 
@@ -56,17 +56,10 @@ let undoableStateTests =
               let s2 = redo s
               Expect.equal (current s2) 1 "Redo should do nothing if future is empty"
           }
-          test "saveCurrentForUndo pushes transformed present to past (canUndo)" {
-              let s = createUndoableState 5
-              let s2 = saveCurrentForUndo ((+) 1) s
-              Expect.isTrue (canUndo s2) "Should be able to undo after saveCurrentForUndo"
-              let s3 = undo s2
-              Expect.equal (current s3) 6 "Undo should restore transformed present"
-          }
           test "setCurrent changes present, leaves undo/redo unchanged" {
               let s =
                   createUndoableState 1
-                  |> saveCurrentForUndo id
+                  |> saveCurrentForUndo
                   |> setCurrent 2
 
               Expect.equal (current s) 2 "Present should be updated"
@@ -75,7 +68,7 @@ let undoableStateTests =
           test "undo restores previous state and enables redo" {
               let s =
                   createUndoableState 1
-                  |> saveCurrentForUndo id
+                  |> saveCurrentForUndo
                   |> setCurrent 2
 
               let s2 = undo s

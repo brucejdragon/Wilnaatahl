@@ -124,11 +124,9 @@ module ViewState =
                 let offset = nx - px, ny - py, nz - pz
 
                 // Use this opportunity to save the current node positions before
-                // they start changing for undo/redo. Make sure the selection is
-                // cleared before saving, since that shouldn't really be part of the
-                // undo/redo history.
+                // they start changing for undo/redo.
                 { state with
-                    history = state.history |> saveCurrentForUndo deselectAll
+                    history = state.history |> saveCurrentForUndo
                     drag = Dragging offset }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->

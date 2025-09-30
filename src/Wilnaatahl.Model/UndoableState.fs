@@ -33,11 +33,9 @@ module UndoableState =
               future = rest }
         | [] -> state
 
-    /// Saves the current state for potential undo, applying function f to transform it first.
-    /// The current state remains unchanged; Only the transformed version of it is pushed on
-    /// the undo stack.
-    let saveCurrentForUndo f state =
-        { state with past = (f state.present) :: state.past }
+    /// Saves the current state for potential undo.
+    let saveCurrentForUndo state =
+        { state with past = state.present :: state.past }
 
     /// Sets the current state to a new value.
     /// The undo and redo stacks remain unchanged.

@@ -20,20 +20,19 @@ let viewModelTests =
     testList
         "ViewModel"
         [ test "CanUndo and CanRedo reflect undo/redo state" {
-              let state = initialState
-              Expect.isFalse (viewModel.CanUndo state) "Cannot undo initially"
-              Expect.isFalse (viewModel.CanRedo state) "Cannot redo initially"
+              Expect.isFalse (viewModel.CanUndo initialState) "Cannot undo initially"
+              Expect.isFalse (viewModel.CanRedo initialState) "Cannot redo initially"
               // Only drag operations are undoable
-              let state' =
-                  state
+              let state =
+                  initialState
                   |> update (TouchNode(NodeId 1))
                   |> update (StartDrag(1.0, 1.0, 0.0))
                   |> update (DragTo(2.0, 2.0, 0.0))
                   |> update EndDrag
 
-              Expect.isTrue (viewModel.CanUndo state') "Can undo after drag operation"
-              let state'' = state' |> update Undo
-              Expect.isTrue (viewModel.CanRedo state'') "Can redo after undo"
+              Expect.isTrue (viewModel.CanUndo state) "Can undo after drag operation"
+              let state' = state |> update Undo
+              Expect.isTrue (viewModel.CanRedo state') "Can redo after undo"
           }
 
           test "CreateInitialViewState sets up nodes and families" {
@@ -93,58 +92,165 @@ let viewModelTests =
           }
 
           test "ShouldEnableOrbitControls reflects drag state" {
-              let state = initialState
-              Expect.isTrue (viewModel.ShouldEnableOrbitControls state) "Orbit controls enabled initially"
+              Expect.isTrue (viewModel.ShouldEnableOrbitControls initialState) "Orbit controls enabled initially"
 
-              let state' =
-                  state
+              let state =
+                  initialState
                   |> update (TouchNode(NodeId 1))
                   |> update (StartDrag(1.0, 1.0, 0.0))
 
-              Expect.isFalse (viewModel.ShouldEnableOrbitControls state') "Orbit controls disabled when dragging"
+              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled when dragging"
           }
 
-          // TODO: Improve coverage. These are currently highly duplicative of the other test cases (blame Copilot, not me).
-          test "Update handles SelectNode, DeselectAll, Undo, Redo, ToggleSelection, TouchNode, DragTo, EndDrag" {
-              let state = initialState
-              let state1 = state |> update (SelectNode(NodeId 1))
+          test "SelectNode selects and deselects nodes correctly" {
+              // Select node 1
+              let state1 = initialState |> update (SelectNode(NodeId 1))
 
               Expect.equal
                   (viewModel.EnumerateSelectedTreeNodes state1
                    |> Seq.toList)
                   [ node1 ]
                   "Node 1 selected"
-
-              let state2 = state1 |> update DeselectAll
+              // Deselect node 1 by selecting again
+              let state2 = state1 |> update (SelectNode(NodeId 1))
 
               Expect.equal
                   (viewModel.EnumerateSelectedTreeNodes state2
                    |> Seq.length)
                   0
+                  "Node 1 deselected"
+              // MultiSelect mode: select node 1, then node 2
+              let state3 =
+                  initialState
+                  |> update (ToggleSelection MultiSelect)
+                  |> update (SelectNode(NodeId 1))
+                  |> update (SelectNode(NodeId 2))
+
+              let selected =
+                  viewModel.EnumerateSelectedTreeNodes state3
+                  |> Seq.map _.id
+                  |> Set.ofSeq
+
+              Expect.equal selected (Set.ofList [ NodeId 1; NodeId 2 ]) "Nodes 1 and 2 selected in MultiSelect"
+          }
+
+          test "DeselectAll clears all selections" {
+              let state =
+                  initialState
+                  |> update (ToggleSelection MultiSelect)
+                  |> update (SelectNode(NodeId 1))
+                  |> update (SelectNode(NodeId 2))
+                  |> update DeselectAll
+
+              Expect.equal
+                  (viewModel.EnumerateSelectedTreeNodes state
+                   |> Seq.length)
+                  0
                   "All nodes deselected"
-              // Undo/Redo only affect drag operations
-              let dragState =
-                  state
+          }
+
+          test "StartDrag sets drag state and enables undo" {
+              let state =
+                  initialState
+                  |> update (SelectNode(NodeId 1))
+                  |> update (TouchNode(NodeId 1))
+                  |> update (StartDrag(1.0, 1.0, 0.0))
+
+              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled when dragging"
+              Expect.isTrue (viewModel.CanUndo state) "Can undo after drag started"
+          }
+
+          test "DragTo updates selected node positions" {
+              let state =
+                  initialState
+                  |> update (SelectNode(NodeId 1))
+                  |> update (TouchNode(NodeId 1))
+                  |> update (StartDrag(1.0, 1.0, 0.0))
+                  |> update (DragTo(2.0, 2.0, 0.0))
+
+              let selected =
+                  viewModel.EnumerateSelectedTreeNodes state
+                  |> Seq.toList
+
+              let node = selected |> List.filter (fun n -> n.id = NodeId 1) |> List.head
+
+              Expect.equal node.position (2.0, 2.0, 0.0) "Node 1 position updated by drag"
+          }
+
+          test "EndDrag sets DragEnding and clears redo" {
+              let state =
+                  initialState
+                  |> update (SelectNode(NodeId 1))
                   |> update (TouchNode(NodeId 1))
                   |> update (StartDrag(1.0, 1.0, 0.0))
                   |> update (DragTo(2.0, 2.0, 0.0))
                   |> update EndDrag
 
-              let state3 = dragState |> update Undo
-              Expect.isTrue (viewModel.CanRedo state3) "Can redo after undoing drag"
-              let state4 = state3 |> update Redo
-              Expect.isTrue (viewModel.CanUndo state4) "Can undo after redoing drag"
-              let state5 = state |> update (ToggleSelection MultiSelect)
-              Expect.isFalse (viewModel.IsSingleSelectEnabled state5) "Selection mode toggled to MultiSelect"
-              let state6 = state |> update (TouchNode(NodeId 2))
-              // Can't directly check lastTouchedNodeId, but can check that a drag works after touching
-              let dragState2 =
-                  state6
-                  |> update (StartDrag(2.0, 2.0, 0.0))
-                  |> update (DragTo(3.0, 3.0, 0.0))
+              Expect.isFalse (viewModel.CanRedo state) "Redo history cleared after drag ends"
+              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled in DragEnding"
+          }
+
+          test "ToggleSelection changes selection mode and clears selection" {
+              let state =
+                initialState
+                |> update (SelectNode(NodeId 1))
+                |> update (ToggleSelection MultiSelect)
+
+              Expect.isFalse (viewModel.IsSingleSelectEnabled state) "Selection mode is MultiSelect"
+
+              Expect.equal
+                  (viewModel.EnumerateSelectedTreeNodes state
+                   |> Seq.length)
+                  0
+                  "Selection cleared on mode toggle"
+          }
+
+          test "Undo reverts to previous state" {
+              let state1 =
+                  initialState
+                  |> update (SelectNode(NodeId 1))
+                  |> update (TouchNode(NodeId 1))
+                  |> update (StartDrag(1.0, 1.0, 0.0))
+                  |> update (DragTo(2.0, 2.0, 0.0))
                   |> update EndDrag
 
-              Expect.isTrue (viewModel.CanUndo dragState2) "Drag after touch is undoable"
+              let state2 = state1 |> update Undo
+              // After undo, node should be at original position.
+              let selected =
+                  viewModel.EnumerateSelectedTreeNodes state2
+                  |> Seq.toList
+
+              let node =
+                  selected
+                  |> List.filter (fun n -> n.id = NodeId 1)
+                  |> List.head
+
+              Expect.equal node.position (1.0, 1.0, 0.0) ""
+          }
+
+          test "Redo advances to next state" {
+              let state1 =
+                  initialState
+                  |> update (SelectNode(NodeId 1))
+                  |> update (TouchNode(NodeId 1))
+                  |> update (StartDrag(1.0, 1.0, 0.0))
+                  |> update (DragTo(2.0, 2.0, 0.0))
+                  |> update EndDrag
+                  |> update Undo
+
+              let state2 = state1 |> update Redo
+
+              // After redo, node should be at updated position.
+              let selected =
+                  viewModel.EnumerateSelectedTreeNodes state2
+                  |> Seq.toList
+
+              let node =
+                  selected
+                  |> List.filter (fun n -> n.id = NodeId 1)
+                  |> List.head
+
+              Expect.equal node.position (2.0, 2.0, 0.0) ""
           } ]
 
 Mocha.runTests viewModelTests |> ignore
