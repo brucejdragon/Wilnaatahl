@@ -94,6 +94,14 @@ npm install -g serve
 
 Running `serve dist` will start a local static server, typically accessible at: http://localhost:3000
 
+### ✅ 7. Install .NET tools for Code Coverage
+
+Run the following to install the code coverage report generator tool so you can view Code Coverage reports:
+
+```powershell
+dotnet tool install -g dotnet-reportgenerator-globaltool
+```
+
 ## Commands for Dev Inner Loop
 
 The following terminal commands are your dev inner loop:
@@ -102,3 +110,9 @@ The following terminal commands are your dev inner loop:
 - To build for deployment: `npm run build`
 - To host the deployment-ready build locally for testing: `serve dist`
 - To run unit tests: `npm test`
+- To collect Code Coverage data and generate a Code Coverage report:
+
+```powershell
+npm run coverage                                               # Will output link to coverage .xml file
+npm run report --coveragedatapath=<path-to-coverage-xml-file>  # Pass link to coverage .xml file
+```

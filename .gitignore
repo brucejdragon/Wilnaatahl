@@ -41,6 +41,8 @@ build/Release
 # F#/Fable typical ignores
 bin/
 obj/
+TestResults/
+coveragereport/
 .fable/
 .ionide/
 .fsac/
