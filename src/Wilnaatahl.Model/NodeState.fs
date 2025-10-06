@@ -1,9 +1,13 @@
 namespace Wilnaatahl.ViewModel
 
 open Wilnaatahl.Model
+#if FABLE_COMPILER
 open Fable.Core
+#endif
 
+#if FABLE_COMPILER
 [<Erase>]
+#endif
 type NodeId = NodeId of int
 
 /// Represents a node in the tree.

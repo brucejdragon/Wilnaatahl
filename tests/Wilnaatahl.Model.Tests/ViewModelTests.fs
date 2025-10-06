@@ -1,6 +1,7 @@
 module Wilnaatahl.Tests.ViewModelTests
 
-open Expecto
+open Xunit
+open Swensen.Unquote
 open Wilnaatahl.ViewModel
 open Wilnaatahl.Tests.NodeStateTests
 
@@ -16,241 +17,214 @@ let initialState = viewModel.CreateInitialViewState(initialNodes, families)
 
 let update msg state = viewModel.Update state msg
 
-let tests =
-    testList
-        "ViewModel"
-        [ test "CanUndo and CanRedo reflect undo/redo state" {
-              Expect.isFalse (viewModel.CanUndo initialState) "Cannot undo initially"
-              Expect.isFalse (viewModel.CanRedo initialState) "Cannot redo initially"
-              // Only drag operations are undoable
-              let state =
-                  initialState
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
-                  |> update (DragTo(2.0, 2.0, 0.0))
-                  |> update EndDrag
+[<Fact>]
+let ``CanUndo and CanRedo reflect undo/redo state`` () =
+    viewModel.CanUndo initialState =! false
+    viewModel.CanRedo initialState =! false
+    // Only drag operations are undoable
+    let state =
+        initialState
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update EndDrag
 
-              Expect.isTrue (viewModel.CanUndo state) "Can undo after drag operation"
-              let state' = state |> update Undo
-              Expect.isTrue (viewModel.CanRedo state') "Can redo after undo"
-          }
+    viewModel.CanUndo state =! true
+    let state' = state |> update Undo
+    viewModel.CanRedo state' =! true
 
-          test "CreateInitialViewState sets up nodes and families" {
-              let state = initialState
+[<Fact>]
+let ``CreateInitialViewState sets up nodes and families`` () =
+    let state = initialState
 
-              let nodes =
-                  viewModel.EnumerateUnselectedTreeNodes state
-                  |> Seq.toList
+    let nodes =
+        viewModel.EnumerateUnselectedTreeNodes state
+        |> Seq.toList
 
-              let fams = viewModel.EnumerateFamilies state |> Seq.toList
-              Expect.equal nodes initialNodes "Initial nodes match"
-              Expect.equal fams families "Initial families match"
-          }
+    let fams = viewModel.EnumerateFamilies state |> Seq.toList
+    nodes =! initialNodes
+    fams =! families
 
-          test "EnumerateSelectedTreeNodes and EnumerateUnselectedTreeNodes reflect selection" {
-              let state = initialState |> update (SelectNode(NodeId 1))
+[<Fact>]
+let ``EnumerateSelectedTreeNodes and EnumerateUnselectedTreeNodes reflect selection`` () =
+    let state = initialState |> update (SelectNode(NodeId 1))
 
-              let selected =
-                  viewModel.EnumerateSelectedTreeNodes state
-                  |> Seq.toList
+    let selected =
+        viewModel.EnumerateSelectedTreeNodes state
+        |> Seq.toList
 
-              let unselected =
-                  viewModel.EnumerateUnselectedTreeNodes state
-                  |> Seq.toList
+    let unselected =
+        viewModel.EnumerateUnselectedTreeNodes state
+        |> Seq.toList
 
-              Expect.equal selected [ node1 ] "Node 1 selected"
-              Expect.equal (Set.ofList unselected) (Set.ofList [ node2; node3; node4 ]) "Other nodes unselected"
-          }
+    selected =! [ node1 ]
+    Set.ofList unselected =! Set.ofList [ node2; node3; node4 ]
 
-          test "EnumerateFamilies returns all families" {
-              let fams =
-                  viewModel.EnumerateFamilies initialState
-                  |> Seq.toList
+[<Fact>]
+let ``EnumerateFamilies returns all families`` () =
+    let fams =
+        viewModel.EnumerateFamilies initialState
+        |> Seq.toList
 
-              Expect.equal fams families "Families returned"
-          }
+    fams =! families
 
-          test "EnumerateChildren returns correct children" {
-              let children =
-                  viewModel.EnumerateChildren initialState family
-                  |> Seq.toList
+[<Fact>]
+let ``EnumerateChildren returns correct children`` () =
+    let children =
+        viewModel.EnumerateChildren initialState family
+        |> Seq.toList
 
-              Expect.equal children [ node3; node4 ] "Children returned"
-          }
+    children =! [ node3; node4 ]
 
-          test "EnumerateParents returns correct parents" {
-              let p1, p2 = viewModel.EnumerateParents initialState family
-              Expect.equal p1 node1 "Parent 1 correct"
-              Expect.equal p2 node2 "Parent 2 correct"
-          }
+[<Fact>]
+let ``EnumerateParents returns correct parents`` () =
+    let p1, p2 = viewModel.EnumerateParents initialState family
+    p1 =! node1
+    p2 =! node2
 
-          test "IsSingleSelectEnabled reflects selection mode" {
-              let state = initialState
-              Expect.isTrue (viewModel.IsSingleSelectEnabled state) "SingleSelect enabled initially"
-              let state' = state |> update (ToggleSelection MultiSelect)
-              Expect.isFalse (viewModel.IsSingleSelectEnabled state') "MultiSelect disables single select"
-          }
+[<Fact>]
+let ``IsSingleSelectEnabled reflects selection mode`` () =
+    let state = initialState
+    viewModel.IsSingleSelectEnabled state =! true
+    let state' = state |> update (ToggleSelection MultiSelect)
+    viewModel.IsSingleSelectEnabled state' =! false
 
-          test "ShouldEnableOrbitControls reflects drag state" {
-              Expect.isTrue (viewModel.ShouldEnableOrbitControls initialState) "Orbit controls enabled initially"
+[<Fact>]
+let ``ShouldEnableOrbitControls reflects drag state`` () =
+    viewModel.ShouldEnableOrbitControls initialState =! true
 
-              let state =
-                  initialState
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
+    let state =
+        initialState
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
 
-              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled when dragging"
-          }
+    viewModel.ShouldEnableOrbitControls state =! false
 
-          test "SelectNode selects and deselects nodes correctly" {
-              // Select node 1
-              let state1 = initialState |> update (SelectNode(NodeId 1))
+[<Fact>]
+let ``SelectNode selects and deselects nodes correctly`` () =
+    // Select node 1
+    let state1 = initialState |> update (SelectNode(NodeId 1))
 
-              Expect.equal
-                  (viewModel.EnumerateSelectedTreeNodes state1
-                   |> Seq.toList)
-                  [ node1 ]
-                  "Node 1 selected"
-              // Deselect node 1 by selecting again
-              let state2 = state1 |> update (SelectNode(NodeId 1))
+    viewModel.EnumerateSelectedTreeNodes state1 |> Seq.toList =! [ node1 ]
 
-              Expect.equal
-                  (viewModel.EnumerateSelectedTreeNodes state2
-                   |> Seq.length)
-                  0
-                  "Node 1 deselected"
-              // MultiSelect mode: select node 1, then node 2
-              let state3 =
-                  initialState
-                  |> update (ToggleSelection MultiSelect)
-                  |> update (SelectNode(NodeId 1))
-                  |> update (SelectNode(NodeId 2))
+    // Deselect node 1 by selecting again
+    let state2 = state1 |> update (SelectNode(NodeId 1))
 
-              let selected =
-                  viewModel.EnumerateSelectedTreeNodes state3
-                  |> Seq.map _.id
-                  |> Set.ofSeq
+    viewModel.EnumerateSelectedTreeNodes state2 |> Seq.length =! 0
 
-              Expect.equal selected (Set.ofList [ NodeId 1; NodeId 2 ]) "Nodes 1 and 2 selected in MultiSelect"
-          }
+    // MultiSelect mode: select node 1, then node 2
+    let state3 =
+        initialState
+        |> update (ToggleSelection MultiSelect)
+        |> update (SelectNode(NodeId 1))
+        |> update (SelectNode(NodeId 2))
 
-          test "DeselectAll clears all selections" {
-              let state =
-                  initialState
-                  |> update (ToggleSelection MultiSelect)
-                  |> update (SelectNode(NodeId 1))
-                  |> update (SelectNode(NodeId 2))
-                  |> update DeselectAll
+    let selected =
+        viewModel.EnumerateSelectedTreeNodes state3
+        |> Seq.map _.id
+        |> Set.ofSeq
 
-              Expect.equal
-                  (viewModel.EnumerateSelectedTreeNodes state
-                   |> Seq.length)
-                  0
-                  "All nodes deselected"
-          }
+    selected =! Set.ofList [ NodeId 1; NodeId 2 ]
 
-          test "StartDrag sets drag state and enables undo" {
-              let state =
-                  initialState
-                  |> update (SelectNode(NodeId 1))
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
+[<Fact>]
+let ``DeselectAll clears all selections`` () =
+    let state =
+        initialState
+        |> update (ToggleSelection MultiSelect)
+        |> update (SelectNode(NodeId 1))
+        |> update (SelectNode(NodeId 2))
+        |> update DeselectAll
+    
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.length =! 0
 
-              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled when dragging"
-              Expect.isTrue (viewModel.CanUndo state) "Can undo after drag started"
-          }
+[<Fact>]
+let ``StartDrag sets drag state and enables undo`` () =
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+    viewModel.ShouldEnableOrbitControls state =! false
+    viewModel.CanUndo state =! true
 
-          test "DragTo updates selected node positions" {
-              let state =
-                  initialState
-                  |> update (SelectNode(NodeId 1))
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
-                  |> update (DragTo(2.0, 2.0, 0.0))
+[<Fact>]
+let ``DragTo updates selected node positions`` () =
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+    let selected = viewModel.EnumerateSelectedTreeNodes state |> Seq.toList
 
-              let selected =
-                  viewModel.EnumerateSelectedTreeNodes state
-                  |> Seq.toList
+    let position =
+        selected
+            |> List.filter (fun n -> n.id = NodeId 1)
+            |> List.map _.position
+            |> List.tryHead
+    
+    position =! Some(2.0, 2.0, 0.0)
 
-              let node = selected |> List.filter (fun n -> n.id = NodeId 1) |> List.head
+[<Fact>]
+let ``EndDrag sets DragEnding and clears redo`` () =
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update EndDrag
+    viewModel.CanRedo state =! false
+    viewModel.ShouldEnableOrbitControls state =! false
 
-              Expect.equal node.position (2.0, 2.0, 0.0) "Node 1 position updated by drag"
-          }
+[<Fact>]
+let ``ToggleSelection changes selection mode and clears selection`` () =
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (ToggleSelection MultiSelect)
+    viewModel.IsSingleSelectEnabled state =! false
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.length =! 0
 
-          test "EndDrag sets DragEnding and clears redo" {
-              let state =
-                  initialState
-                  |> update (SelectNode(NodeId 1))
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
-                  |> update (DragTo(2.0, 2.0, 0.0))
-                  |> update EndDrag
+[<Fact>]
+let ``Undo reverts to previous state`` () =
+    let state1 =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update EndDrag
 
-              Expect.isFalse (viewModel.CanRedo state) "Redo history cleared after drag ends"
-              Expect.isFalse (viewModel.ShouldEnableOrbitControls state) "Orbit controls disabled in DragEnding"
-          }
+    let state2 = state1 |> update Undo
 
-          test "ToggleSelection changes selection mode and clears selection" {
-              let state =
-                initialState
-                |> update (SelectNode(NodeId 1))
-                |> update (ToggleSelection MultiSelect)
+    // After undo, node should be at original position.
+    let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
+    let position =
+        selected
+        |> List.filter (fun n -> n.id = NodeId 1)
+        |> List.map _.position
+        |> List.tryHead
+    position =! Some(1.0, 1.0, 0.0)
 
-              Expect.isFalse (viewModel.IsSingleSelectEnabled state) "Selection mode is MultiSelect"
+[<Fact>]
+let ``Redo advances to next state`` () =
+    let state1 =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update EndDrag
+        |> update Undo
 
-              Expect.equal
-                  (viewModel.EnumerateSelectedTreeNodes state
-                   |> Seq.length)
-                  0
-                  "Selection cleared on mode toggle"
-          }
+    let state2 = state1 |> update Redo
 
-          test "Undo reverts to previous state" {
-              let state1 =
-                  initialState
-                  |> update (SelectNode(NodeId 1))
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
-                  |> update (DragTo(2.0, 2.0, 0.0))
-                  |> update EndDrag
-
-              let state2 = state1 |> update Undo
-              // After undo, node should be at original position.
-              let selected =
-                  viewModel.EnumerateSelectedTreeNodes state2
-                  |> Seq.toList
-
-              let position =
-                  selected
-                  |> List.filter (fun n -> n.id = NodeId 1)
-                  |> List.map (fun n -> n.position)
-                  |> List.tryHead
-
-              Expect.equal position (Some(1.0, 1.0, 0.0)) "Selected node at original position after undo"
-          }
-
-          test "Redo advances to next state" {
-              let state1 =
-                  initialState
-                  |> update (SelectNode(NodeId 1))
-                  |> update (TouchNode(NodeId 1))
-                  |> update (StartDrag(1.0, 1.0, 0.0))
-                  |> update (DragTo(2.0, 2.0, 0.0))
-                  |> update EndDrag
-                  |> update Undo
-
-              let state2 = state1 |> update Redo
-
-              // After redo, node should be at updated position.
-              let selected =
-                  viewModel.EnumerateSelectedTreeNodes state2
-                  |> Seq.toList
-
-              let position =
-                  selected
-                  |> List.filter (fun n -> n.id = NodeId 1)
-                  |> List.map (fun n -> n.position)
-                  |> List.tryHead
-
-              Expect.equal position (Some(2.0, 2.0, 0.0)) "Selected node at updated position after redo"
-          } ]
+    // After redo, node should be at updated position.
+    let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
+    let position =
+        selected
+        |> List.filter (fun n -> n.id = NodeId 1)
+        |> List.map _.position
+        |> List.tryHead
+    position =! Some(2.0, 2.0, 0.0)

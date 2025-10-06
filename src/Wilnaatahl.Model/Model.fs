@@ -1,9 +1,13 @@
 namespace Wilnaatahl.Model
 
 open System
+#if FABLE_COMPILER
 open Fable.Core
+#endif
 
+#if FABLE_COMPILER
 [<StringEnum>]
+#endif
 type NodeShape =
     | Sphere
     | Cube

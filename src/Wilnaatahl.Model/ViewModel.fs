@@ -3,7 +3,9 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model.Initial
 open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.ViewModel.UndoableState
+#if FABLE_COMPILER
 open Fable.Core
+#endif
 
 type Family =
     { parents: NodeId * NodeId
@@ -20,7 +22,9 @@ type DragState =
         | DragEnding
         | Dragging _ -> false
 
+#if FABLE_COMPILER
 [<StringEnum>]
+#endif
 type SelectionMode =
     | SingleSelect
     | MultiSelect

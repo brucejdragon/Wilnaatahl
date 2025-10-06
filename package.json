@@ -8,7 +8,7 @@
     "build": "npm run fable && tsc && vite build",
     "dev": "npm run fable && vite",
     "preview": "npm run fable && vite preview",
-    "test": "(pushd .\\tests\\Wilnaatahl.Model.Tests && dotnet run)"
+    "test": "(pushd .\\tests\\Wilnaatahl.Model.Tests && dotnet test)"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
