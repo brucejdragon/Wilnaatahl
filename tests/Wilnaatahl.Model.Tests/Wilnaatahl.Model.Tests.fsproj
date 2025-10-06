@@ -2,12 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="UndoableStateTests.fs" />
     <Compile Include="NodeStateTests.fs" />
     <Compile Include="ViewModelTests.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fable.Mocha" Version="2.17.0" />
+    <PackageReference Include="Expecto" Version="10.2.3" />
   </ItemGroup>
 
 </Project>

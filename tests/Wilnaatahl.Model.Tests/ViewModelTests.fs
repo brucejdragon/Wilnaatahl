@@ -1,6 +1,6 @@
 module Wilnaatahl.Tests.ViewModelTests
 
-open Fable.Mocha
+open Expecto
 open Wilnaatahl.ViewModel
 open Wilnaatahl.Tests.NodeStateTests
 
@@ -16,7 +16,7 @@ let initialState = viewModel.CreateInitialViewState(initialNodes, families)
 
 let update msg state = viewModel.Update state msg
 
-let viewModelTests =
+let tests =
     testList
         "ViewModel"
         [ test "CanUndo and CanRedo reflect undo/redo state" {
@@ -220,12 +220,13 @@ let viewModelTests =
                   viewModel.EnumerateSelectedTreeNodes state2
                   |> Seq.toList
 
-              let node =
+              let position =
                   selected
                   |> List.filter (fun n -> n.id = NodeId 1)
-                  |> List.head
+                  |> List.map (fun n -> n.position)
+                  |> List.tryHead
 
-              Expect.equal node.position (1.0, 1.0, 0.0) ""
+              Expect.equal position (Some(1.0, 1.0, 0.0)) "Selected node at original position after undo"
           }
 
           test "Redo advances to next state" {
@@ -245,12 +246,11 @@ let viewModelTests =
                   viewModel.EnumerateSelectedTreeNodes state2
                   |> Seq.toList
 
-              let node =
+              let position =
                   selected
                   |> List.filter (fun n -> n.id = NodeId 1)
-                  |> List.head
+                  |> List.map (fun n -> n.position)
+                  |> List.tryHead
 
-              Expect.equal node.position (2.0, 2.0, 0.0) ""
+              Expect.equal position (Some(2.0, 2.0, 0.0)) "Selected node at updated position after redo"
           } ]
-
-Mocha.runTests viewModelTests |> ignore

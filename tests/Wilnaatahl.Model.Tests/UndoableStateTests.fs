@@ -1,9 +1,9 @@
-module Wilnaatahl.Model.UndoableStateTests
+module Wilnaatahl.Tests.UndoableStateTests
 
-open Fable.Mocha
+open Expecto
 open Wilnaatahl.ViewModel.UndoableState
 
-let undoableStateTests =
+let tests =
     testList
         "UndoableState"
         [ test "createUndoableState initializes correctly" {
@@ -80,5 +80,3 @@ let undoableStateTests =
               let s2 = undo s
               Expect.equal (current s2) 1 "Undo should do nothing if past is empty"
           } ]
-
-Mocha.runTests undoableStateTests |> ignore

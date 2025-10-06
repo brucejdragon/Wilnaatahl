@@ -8,9 +8,7 @@
     "build": "npm run fable && tsc && vite build",
     "dev": "npm run fable && vite",
     "preview": "npm run fable && vite preview",
-    "pretest": "dotnet fable --outDir ../generated --cwd ./tests/Wilnaatahl.Model.Tests",
-    "test": "mocha ./tests/generated",
-    "coverage": "(pushd .\\tests\\generated && c8 --all mocha .)"
+    "test": "(pushd .\\tests\\Wilnaatahl.Model.Tests && dotnet run)"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
