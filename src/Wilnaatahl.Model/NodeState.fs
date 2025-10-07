@@ -12,71 +12,71 @@ type NodeId = NodeId of int
 
 /// Represents a node in the tree.
 type TreeNode =
-    { id: NodeId
-      position: float * float * float
-      person: Person }
+    { Id: NodeId
+      Position: float * float * float
+      Person: Person }
 
 /// Encapsulates the state of all nodes and selection.
 module NodeState =
     type NodeState =
         private
-            { nodes: Map<int, TreeNode>
-              selectedNodes: Map<int, TreeNode> }
+            { Nodes: Map<int, TreeNode>
+              SelectedNodes: Map<int, TreeNode> }
 
     let private nodeIdToInt (NodeId nodeId) = nodeId
 
     let createNodeState nodes =
-        { nodes =
+        { Nodes =
             nodes
-            |> Seq.map (fun node -> nodeIdToInt node.id, node)
+            |> Seq.map (fun node -> nodeIdToInt node.Id, node)
             |> Map.ofSeq
-          selectedNodes = Map.empty }
+          SelectedNodes = Map.empty }
 
     let deselect (NodeId nodeId) state =
-        match state.selectedNodes |> Map.tryFind nodeId with
+        match state.SelectedNodes |> Map.tryFind nodeId with
         | Some node ->
             { state with
-                selectedNodes = state.selectedNodes |> Map.remove nodeId
-                nodes = state.nodes |> Map.add nodeId node }
+                SelectedNodes = state.SelectedNodes |> Map.remove nodeId
+                Nodes = state.Nodes |> Map.add nodeId node }
         | None -> state
 
     let deselectAll state =
         let add ns node =
-            ns |> Map.add (nodeIdToInt node.id) node
+            ns |> Map.add (nodeIdToInt node.Id) node
 
         let newNodes =
-            state.selectedNodes.Values
-            |> Seq.fold add state.nodes
+            state.SelectedNodes.Values
+            |> Seq.fold add state.Nodes
 
         { state with
-            selectedNodes = Map.empty
-            nodes = newNodes }
+            SelectedNodes = Map.empty
+            Nodes = newNodes }
 
     let findNode (NodeId nodeId) state =
         // Look in selectedNodes first, then nodes. This is on the theory that
         // lookups are more frequent when updating the positions of selected nodes
         // during a drag operation.
-        match state.selectedNodes |> Map.tryFind nodeId with
+        match state.SelectedNodes |> Map.tryFind nodeId with
         | Some node -> node
-        | None -> Map.find nodeId state.nodes
+        | None -> Map.find nodeId state.Nodes
 
     let isSelected (NodeId nodeId) state =
-        state.selectedNodes |> Map.containsKey nodeId
+        state.SelectedNodes |> Map.containsKey nodeId
 
     let mapSelected f state =
-        let mappedNodes = state.selectedNodes |> Map.map (fun _ n -> f n)
-        { state with selectedNodes = mappedNodes }
+        let mappedNodes = state.SelectedNodes |> Map.map (fun _ n -> f n)
+        { state with SelectedNodes = mappedNodes }
 
     let select (NodeId nodeId) state =
-        match state.nodes |> Map.tryFind nodeId with
+        match state.Nodes |> Map.tryFind nodeId with
         | Some node ->
             { state with
-                selectedNodes = state.selectedNodes |> Map.add nodeId node
-                nodes = state.nodes |> Map.remove nodeId }
+                SelectedNodes = state.SelectedNodes |> Map.add nodeId node
+                Nodes = state.Nodes |> Map.remove nodeId }
         | None -> state
 
     let selected state =
-        state.selectedNodes |> Map.values :> seq<TreeNode>
+        state.SelectedNodes |> Map.values :> seq<TreeNode>
 
     let unselected state =
-        state.nodes |> Map.values :> seq<TreeNode>
+        state.Nodes |> Map.values :> seq<TreeNode>

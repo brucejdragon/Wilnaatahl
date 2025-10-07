@@ -37,9 +37,9 @@ function TreeNodeMesh({
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
 }) {
   const selectedNodeColour = "#8B4000"; // Deep, red copper
-  const person = node.person;
-  const position = node.position;
-  const label = defaultArg(person.label, undefined);
+  const person = node.Person;
+  const position = node.Position;
+  const label = defaultArg(person.Label, undefined);
   return (
     <>
       <mesh
@@ -49,7 +49,7 @@ function TreeNodeMesh({
         castShadow
         receiveShadow
       >
-        {person.shape === "sphere" ? (
+        {person.Shape === "sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
           <boxGeometry args={[0.6, 0.6, 0.6]} />
@@ -102,7 +102,7 @@ function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
 }
 
 function makeFamilyId(parent1: TreeNode, parent2: TreeNode): string {
-  return `${parent1.id}-${parent2.id}-family`;
+  return `${parent1.Id}-${parent2.Id}-family`;
 }
 
 function ChildrenGroup({
@@ -118,7 +118,7 @@ function ChildrenGroup({
   // the given midpoint of the bottom connector between the parents.
   var highestChildY = -Infinity;
   for (const child of children) {
-    const childY = child.position[1];
+    const childY = child.Position[1];
     if (childY > highestChildY) {
       highestChildY = childY;
     }
@@ -134,8 +134,8 @@ function ChildrenGroup({
   // the branch position, a right-angle connector with sphere "elbow" is needed.
   var childrenDirectlyBelow = 0;
   for (const child of children) {
-    const childPosition = new THREE.Vector3(...child.position);
-    const childId = child.id;
+    const childPosition = new THREE.Vector3(...child.Position);
+    const childId = child.Id;
     const branchY = branchPosition.y;
 
     var childConnectorKey: React.Key;
@@ -178,8 +178,8 @@ function FamilyGroup({
   children: Iterable<TreeNode>;
 }) {
   // Calculate the vector between the two parent nodes
-  const p1 = new THREE.Vector3(...parent1.position);
-  const p2 = new THREE.Vector3(...parent2.position);
+  const p1 = new THREE.Vector3(...parent1.Position);
+  const p2 = new THREE.Vector3(...parent2.Position);
   const dir = p2.clone().sub(p1).normalize();
 
   // Find a vector perpendicular to dir in the XY plane
@@ -203,12 +203,12 @@ function FamilyGroup({
   return (
     <group>
       <ConnectorMesh
-        key={`parent-${parent1.id}-${parent2.id}-connector-top`}
+        key={`parent-${parent1.Id}-${parent2.Id}-connector-top`}
         from={parent1Top}
         to={parent2Top}
       />
       <ConnectorMesh
-        key={`parent-${parent1.id}-${parent2.id}-connector-bottom`}
+        key={`parent-${parent1.Id}-${parent2.Id}-connector-bottom`}
         from={parent1Bottom}
         to={parent2Bottom}
       />
@@ -242,11 +242,11 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
   for (const node of viewModel.EnumerateUnselectedTreeNodes(state)) {
     staticNodes.push(
       <TreeNodeMesh
-        key={node.id}
+        key={node.Id}
         node={node}
         isSelected={false}
-        onClick={handleNodeClick(node.id)}
-        onPointerDown={handlePointerDown(node.id)}
+        onClick={handleNodeClick(node.Id)}
+        onPointerDown={handlePointerDown(node.Id)}
       />
     );
   }
@@ -255,11 +255,11 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
   for (const node of viewModel.EnumerateSelectedTreeNodes(state)) {
     draggableNodes.push(
       <TreeNodeMesh
-        key={node.id}
+        key={node.Id}
         node={node}
         isSelected={true}
-        onClick={handleNodeClick(node.id)}
-        onPointerDown={handlePointerDown(node.id)}
+        onClick={handleNodeClick(node.Id)}
+        onPointerDown={handlePointerDown(node.Id)}
       />
     );
   }

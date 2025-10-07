@@ -13,48 +13,48 @@ type NodeShape =
     | Cube
 
 type Person =
-    { label: string option
-      shape: NodeShape
-      mother: Person option
-      father: Person option
-      dateOfBirth: DateOnly option
-      dateOfDeath: DateOnly option }
+    { Label: string option
+      Shape: NodeShape
+      Mother: Person option
+      Father: Person option
+      DateOfBirth: DateOnly option
+      DateOfDeath: DateOnly option }
 
 module Initial =
     let private maternalAncestor =
-        { label = None
-          shape = Sphere
-          mother = None
-          father = None
-          dateOfBirth = None
-          dateOfDeath = None }
+        { Label = None
+          Shape = Sphere
+          Mother = None
+          Father = None
+          DateOfBirth = None
+          DateOfDeath = None }
 
     let private paternalAncestor =
-        { label = Some "GGGG Grandfather"
-          shape = Cube
-          mother = None
-          father = None
-          dateOfBirth = None
-          dateOfDeath = None }
+        { Label = Some "GGGG Grandfather"
+          Shape = Cube
+          Mother = None
+          Father = None
+          DateOfBirth = None
+          DateOfDeath = None }
 
     let people =
         [ maternalAncestor
           paternalAncestor
-          { label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
-            shape = Sphere
-            mother = Some maternalAncestor
-            father = Some paternalAncestor
-            dateOfBirth = None
-            dateOfDeath = None }
-          { label = Some "GGG Granduncle H"
-            shape = Cube
-            mother = Some maternalAncestor
-            father = Some paternalAncestor
-            dateOfBirth = None
-            dateOfDeath = None }
-          { label = Some "GGG Granduncle N"
-            shape = Cube
-            mother = Some maternalAncestor
-            father = Some paternalAncestor
-            dateOfBirth = None
-            dateOfDeath = None } ]
+          { Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
+            Shape = Sphere
+            Mother = Some maternalAncestor
+            Father = Some paternalAncestor
+            DateOfBirth = None
+            DateOfDeath = None }
+          { Label = Some "GGG Granduncle H"
+            Shape = Cube
+            Mother = Some maternalAncestor
+            Father = Some paternalAncestor
+            DateOfBirth = None
+            DateOfDeath = None }
+          { Label = Some "GGG Granduncle N"
+            Shape = Cube
+            Mother = Some maternalAncestor
+            Father = Some paternalAncestor
+            DateOfBirth = None
+            DateOfDeath = None } ]

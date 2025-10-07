@@ -7,15 +7,15 @@ open Wilnaatahl.ViewModel
 open Wilnaatahl.ViewModel.NodeState
 
 let samplePerson id name =
-    { id = NodeId id
-      position = float id, float id, 0.0
-      person =
-        { label = Some name
-          shape = Sphere
-          mother = None
-          father = None
-          dateOfBirth = None
-          dateOfDeath = None } }
+    { Id = NodeId id
+      Position = float id, float id, 0.0
+      Person =
+        { Label = Some name
+          Shape = Sphere
+          Mother = None
+          Father = None
+          DateOfBirth = None
+          DateOfDeath = None } }
 
 let node1 = samplePerson 1 "Alice"
 let node2 = samplePerson 2 "Bob"
@@ -90,10 +90,10 @@ let ``mapSelected applies function to all selected nodes`` () =
         |> select (NodeId 1)
         |> select (NodeId 2)
 
-    let state' = mapSelected (fun n -> { n with position = 0.0, 0.0, 0.0 }) state
+    let state' = mapSelected (fun n -> { n with Position = 0.0, 0.0, 0.0 }) state
 
     selected state'
-    |> Seq.forall (fun n -> n.position = (0.0, 0.0, 0.0))
+    |> Seq.forall (fun n -> n.Position = (0.0, 0.0, 0.0))
     =! true
 
 [<Fact>]
@@ -105,12 +105,12 @@ let ``selected and unselected return correct sets`` () =
 
     let sel =
         selected state
-        |> Seq.map (fun n -> n.id)
+        |> Seq.map (fun n -> n.Id)
         |> Set.ofSeq
 
     let unsel =
         unselected state
-        |> Seq.map (fun n -> n.id)
+        |> Seq.map (fun n -> n.Id)
         |> Set.ofSeq
 
     sel =! Set.ofList [ NodeId 1; NodeId 2 ]

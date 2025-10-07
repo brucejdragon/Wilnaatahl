@@ -4,49 +4,49 @@ namespace Wilnaatahl.ViewModel
 module UndoableState =
     type UndoableState<'T> =
         private
-            { past: 'T list
-              present: 'T
-              future: 'T list }
+            { Past: 'T list
+              Present: 'T
+              Future: 'T list }
 
     let createUndoableState initial =
-        { past = []
-          present = initial
-          future = [] }
+        { Past = []
+          Present = initial
+          Future = [] }
 
-    let canUndo state = not (List.isEmpty state.past)
-    let canRedo state = not (List.isEmpty state.future)
+    let canUndo state = not (List.isEmpty state.Past)
+    let canRedo state = not (List.isEmpty state.Future)
 
     /// Gets the current state.
-    let current state = state.present
+    let current state = state.Present
 
     /// Clears the stack of redoable (i.e. -- previously undone) states.
     /// Recommended when an operation that changes the current state completes.
-    let clearRedo state = { state with future = [] }
+    let clearRedo state = { state with Future = [] }
 
     /// Pops and redos the last undone state, if any.
     /// The present state becomes the next undoable state.
     let redo state =
-        match state.future with
+        match state.Future with
         | next :: rest ->
-            { past = state.present :: state.past
-              present = next
-              future = rest }
+            { Past = state.Present :: state.Past
+              Present = next
+              Future = rest }
         | [] -> state
 
     /// Saves the current state for potential undo.
     let saveCurrentForUndo state =
-        { state with past = state.present :: state.past }
+        { state with Past = state.Present :: state.Past }
 
     /// Sets the current state to a new value.
     /// The undo and redo stacks remain unchanged.
-    let setCurrent newPresent state = { state with present = newPresent }
+    let setCurrent newPresent state = { state with Present = newPresent }
 
     /// Pops and undoes the last saved state, if any.
     /// The present state becomes the next redoable state.
     let undo state =
-        match state.past with
+        match state.Past with
         | prev :: rest ->
-            { past = rest
-              present = prev
-              future = state.present :: state.future }
+            { Past = rest
+              Present = prev
+              Future = state.Present :: state.Future }
         | [] -> state

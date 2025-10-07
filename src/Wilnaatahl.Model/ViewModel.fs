@@ -8,12 +8,12 @@ open Fable.Core
 #endif
 
 type Family =
-    { parents: NodeId * NodeId
-      children: NodeId list }
+    { Parents: NodeId * NodeId
+      Children: NodeId list }
 
 type DragData =
-    { offset: float * float * float
-      lastTouchedNodeId: NodeId }
+    { Offset: float * float * float
+      LastTouchedNodeId: NodeId }
 
 type DragState =
     | Dragging of DragData
@@ -51,134 +51,134 @@ type Msg =
 module ViewState =
     type ViewState =
         private
-            { history: UndoableState<NodeState>
-              families: Family list
-              drag: DragState
-              lastTouchedNodeId: NodeId option
-              selectionMode: SelectionMode }
+            { History: UndoableState<NodeState>
+              Families: Family list
+              Drag: DragState
+              LastTouchedNodeId: NodeId option
+              SelectionMode: SelectionMode }
 
     let createViewState nodes families =
-        { history = createNodeState nodes |> createUndoableState
-          families = List.ofSeq families
-          drag = NotDragging
-          lastTouchedNodeId = None
-          selectionMode = SingleSelect }
+        { History = createNodeState nodes |> createUndoableState
+          Families = List.ofSeq families
+          Drag = NotDragging
+          LastTouchedNodeId = None
+          SelectionMode = SingleSelect }
 
-    let canRedo state = canRedo state.history
-    let canUndo state = canUndo state.history
-    let enumerateFamilies state = state.families
+    let canRedo state = canRedo state.History
+    let canUndo state = canUndo state.History
+    let enumerateFamilies state = state.Families
 
     let enumerateChildren state family =
-        let nodes = current state.history
+        let nodes = current state.History
 
-        family.children
+        family.Children
         |> List.map (fun childId -> nodes |> findNode childId)
         |> List.toSeq
 
     let enumerateParents state family =
-        let nodes = current state.history
-        let parent1Id, parent2Id = family.parents
+        let nodes = current state.History
+        let parent1Id, parent2Id = family.Parents
         let parent1 = nodes |> findNode parent1Id
         let parent2 = nodes |> findNode parent2Id
         parent1, parent2
 
-    let enumerateSelectedTreeNodes state = state.history |> current |> selected
-    let enumerateUnselectedTreeNodes state = state.history |> current |> unselected
+    let enumerateSelectedTreeNodes state = state.History |> current |> selected
+    let enumerateUnselectedTreeNodes state = state.History |> current |> unselected
 
     let isSingleSelectEnabled state =
-        state.selectionMode.IsSingleSelectEnabled
+        state.SelectionMode.IsSingleSelectEnabled
 
-    let shouldEnableOrbitControls state = state.drag.ShouldEnableOrbitControls
+    let shouldEnableOrbitControls state = state.Drag.ShouldEnableOrbitControls
 
     let update state msg =
-        let nodes = current state.history
-        let commit nodeState = state.history |> setCurrent nodeState
+        let nodes = current state.History
+        let commit nodeState = state.History |> setCurrent nodeState
 
         match msg with
         | SelectNode nodeId ->
             if nodes |> isSelected nodeId then
-                match state.drag with
+                match state.Drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with history = nodes |> deselect nodeId |> commit }
+                    { state with History = nodes |> deselect nodeId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
-                    { state with drag = NotDragging }
+                    { state with Drag = NotDragging }
                 | Dragging _ -> state // Shouldn't happen, so ignore it.
             else
                 // Select new node:
                 // - In SingleSelect mode, this either selects a node for the first time or replaces the previous selection.
                 // - In MultiSelect mode, this adds to the current selection.
-                match state.selectionMode with
+                match state.SelectionMode with
                 | SingleSelect ->
                     { state with
-                        history = nodes |> deselectAll |> select nodeId |> commit
-                        drag = NotDragging }
+                        History = nodes |> deselectAll |> select nodeId |> commit
+                        Drag = NotDragging }
                 | MultiSelect ->
                     { state with
-                        history = nodes |> select nodeId |> commit
-                        drag = NotDragging }
+                        History = nodes |> select nodeId |> commit
+                        Drag = NotDragging }
         | DeselectAll ->
             { state with
-                history = nodes |> deselectAll |> commit
-                drag = NotDragging }
+                History = nodes |> deselectAll |> commit
+                Drag = NotDragging }
         | StartDrag (px, py, pz) ->
-            match state.lastTouchedNodeId with
+            match state.LastTouchedNodeId with
             | Some nodeId ->
                 // Calculate the offset between the click point and the co-ordinates
                 // of the node that was dragged.
                 let node = nodes |> findNode nodeId
-                let nx, ny, nz = node.position
+                let nx, ny, nz = node.Position
                 let offset = nx - px, ny - py, nz - pz
 
                 // Use this opportunity to save the current node positions before
                 // they start changing for undo/redo.
                 { state with
-                    history = state.history |> saveCurrentForUndo
-                    drag =
+                    History = state.History |> saveCurrentForUndo
+                    Drag =
                         Dragging
-                            { offset = offset
-                              lastTouchedNodeId = nodeId } }
+                            { Offset = offset
+                              LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
-            match state.drag with
-            | Dragging { offset = ox, oy, oz
-                         lastTouchedNodeId = nodeId } ->
+            match state.Drag with
+            | Dragging { Offset = ox, oy, oz
+                         LastTouchedNodeId = nodeId } ->
 
                 // Find the original position of the dragged node
                 let origNode = nodes |> findNode nodeId
-                let origX, origY, origZ = origNode.position
+                let origX, origY, origZ = origNode.Position
                 let newX, newY, newZ = px + ox, py + oy, pz + oz
                 let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
 
                 let updateNodePosition node =
-                    let nx, ny, nz = node.position
+                    let nx, ny, nz = node.Position
                     let newPos = nx + dx, ny + dy, nz + dz
-                    { node with position = newPos }
+                    { node with Position = newPos }
 
                 let updatedNodes = nodes |> mapSelected updateNodePosition
-                { state with history = commit updatedNodes }
+                { state with History = commit updatedNodes }
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
-            match state.drag with
+            match state.Drag with
             | Dragging _ ->
                 // Drag is ending; Flush the redo history to avoid massive time-travel
                 // confusion for the user.
                 { state with
-                    history = clearRedo state.history
-                    drag = DragEnding }
+                    History = clearRedo state.History
+                    Drag = DragEnding }
             | DragEnding
             | NotDragging -> state // This can happen on de-selection clicks, so ignore it.
         | ToggleSelection mode ->
             // We clear the selection when toggling selection mode so you don't end up
             // confusing the user by having multiple nodes selected when in single-selection mode.
             { state with
-                history = nodes |> deselectAll |> commit
-                selectionMode = mode }
-        | TouchNode nodeId -> { state with lastTouchedNodeId = Some nodeId }
-        | Undo -> { state with history = undo state.history }
-        | Redo -> { state with history = redo state.history }
+                History = nodes |> deselectAll |> commit
+                SelectionMode = mode }
+        | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
+        | Undo -> { state with History = undo state.History }
+        | Redo -> { state with History = redo state.History }
 
 open ViewState
 
@@ -214,23 +214,23 @@ type ViewModel() =
 
 module Initial =
     let nodes =
-        [ { id = NodeId 0
-            position = -1.0, 0.0, 0.0
-            person = people[0] }
-          { id = NodeId 1
-            position = 1.0, 0.0, 0.0
-            person = people[1] }
-          { id = NodeId 2
-            position = -2.0, -2.0, 0.0
-            person = people[2] }
-          { id = NodeId 3
-            position = 0.0, -2.0, 0.0
-            person = people[3] }
-          { id = NodeId 4
-            position = 2.0, -2.0, 0.0
-            person = people[4] } ]
+        [ { Id = NodeId 0
+            Position = -1.0, 0.0, 0.0
+            Person = people[0] }
+          { Id = NodeId 1
+            Position = 1.0, 0.0, 0.0
+            Person = people[1] }
+          { Id = NodeId 2
+            Position = -2.0, -2.0, 0.0
+            Person = people[2] }
+          { Id = NodeId 3
+            Position = 0.0, -2.0, 0.0
+            Person = people[3] }
+          { Id = NodeId 4
+            Position = 2.0, -2.0, 0.0
+            Person = people[4] } ]
         |> Seq.ofList
 
     let families =
-        [ { parents = NodeId 0, NodeId 1
-            children = [ NodeId 2; NodeId 3; NodeId 4 ] } ]
+        [ { Parents = NodeId 0, NodeId 1
+            Children = [ NodeId 2; NodeId 3; NodeId 4 ] } ]

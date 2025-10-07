@@ -6,8 +6,8 @@ open Wilnaatahl.ViewModel
 open Wilnaatahl.Tests.NodeStateTests
 
 let family =
-    { parents = NodeId 1, NodeId 2
-      children = [ NodeId 3; NodeId 4 ] }
+    { Parents = NodeId 1, NodeId 2
+      Children = [ NodeId 3; NodeId 4 ] }
 
 let families = [ family ]
 
@@ -121,7 +121,7 @@ let ``SelectNode selects and deselects nodes correctly`` () =
 
     let selected =
         viewModel.EnumerateSelectedTreeNodes state3
-        |> Seq.map _.id
+        |> Seq.map _.Id
         |> Set.ofSeq
 
     selected =! Set.ofList [ NodeId 1; NodeId 2 ]
@@ -159,8 +159,8 @@ let ``DragTo updates selected node positions`` () =
 
     let position =
         selected
-            |> List.filter (fun n -> n.id = NodeId 1)
-            |> List.map _.position
+            |> List.filter (fun n -> n.Id = NodeId 1)
+            |> List.map _.Position
             |> List.tryHead
     
     position =! Some(2.0, 2.0, 0.0)
@@ -202,8 +202,8 @@ let ``Undo reverts to previous state`` () =
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
     let position =
         selected
-        |> List.filter (fun n -> n.id = NodeId 1)
-        |> List.map _.position
+        |> List.filter (fun n -> n.Id = NodeId 1)
+        |> List.map _.Position
         |> List.tryHead
     position =! Some(1.0, 1.0, 0.0)
 
@@ -224,8 +224,8 @@ let ``Redo advances to next state`` () =
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
     let position =
         selected
-        |> List.filter (fun n -> n.id = NodeId 1)
-        |> List.map _.position
+        |> List.filter (fun n -> n.Id = NodeId 1)
+        |> List.map _.Position
         |> List.tryHead
     position =! Some(2.0, 2.0, 0.0)
 
@@ -241,7 +241,7 @@ let ``SelectNode when DragEnding does not change selection, resets drag`` () =
         |> update EndDrag
         |> update (SelectNode(NodeId 1)) // triggers DragEnding sub-case
     // Drag should be reset to NotDragging, selection unchanged (in terms of ID, not co-ordinates)
-    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList |> List.map _.id =! [ node1.id ]
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList |> List.map _.Id =! [ node1.Id ]
     viewModel.ShouldEnableOrbitControls state =! true
 
 [<Fact>]
