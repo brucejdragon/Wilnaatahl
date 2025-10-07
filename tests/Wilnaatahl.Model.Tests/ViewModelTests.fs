@@ -228,3 +228,52 @@ let ``Redo advances to next state`` () =
         |> List.map _.position
         |> List.tryHead
     position =! Some(2.0, 2.0, 0.0)
+
+[<Fact>]
+let ``SelectNode when DragEnding does not change selection, resets drag`` () =
+    // Setup state with DragEnding and node selected
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update EndDrag
+        |> update (SelectNode(NodeId 1)) // triggers DragEnding sub-case
+    // Drag should be reset to NotDragging, selection unchanged (in terms of ID, not co-ordinates)
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList |> List.map _.id =! [ node1.id ]
+    viewModel.ShouldEnableOrbitControls state =! true
+
+[<Fact>]
+let ``SelectNode when Dragging does nothing`` () =
+    // Setup state with Dragging and node selected
+    let state =
+        initialState
+        |> update (SelectNode(NodeId 1))
+        |> update (TouchNode(NodeId 1))
+        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update (SelectNode(NodeId 1)) // triggers Dragging sub-case
+    // Should be unchanged from before
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList =! [ node1 ]
+    viewModel.ShouldEnableOrbitControls state =! false
+
+[<Fact>]
+let ``StartDrag without initial TouchNode does nothing`` () =
+    // Setup state with no last touched node (no TouchNode sent).
+    let state = update (StartDrag(1.0, 1.0, 0.0)) initialState
+    // State should be unchanged
+    state =! initialState
+
+[<Fact>]
+let ``DragTo when NotDragging does nothing`` () =
+    // Setup state with NotDragging
+    let state = update (DragTo(2.0, 2.0, 0.0)) initialState
+    // State should be unchanged
+    state =! initialState
+
+[<Fact>]
+let ``EndDrag when NotDragging does nothing`` () =
+    // Setup state with NotDragging
+    let state = update EndDrag initialState
+    // State should be unchanged
+    state =! initialState

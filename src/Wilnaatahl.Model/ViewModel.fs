@@ -11,8 +11,12 @@ type Family =
     { parents: NodeId * NodeId
       children: NodeId list }
 
+type DragData =
+    { offset: float * float * float
+      lastTouchedNodeId: NodeId }
+
 type DragState =
-    | Dragging of offset: float * float * float
+    | Dragging of DragData
     // Captures the state between pointer up and the final click, which should be ignored.
     | DragEnding
     | NotDragging
@@ -131,27 +135,29 @@ module ViewState =
                 // they start changing for undo/redo.
                 { state with
                     history = state.history |> saveCurrentForUndo
-                    drag = Dragging offset }
+                    drag =
+                        Dragging
+                            { offset = offset
+                              lastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
             match state.drag with
-            | Dragging (ox, oy, oz) ->
-                match state.lastTouchedNodeId with
-                | Some nodeId ->
-                    // Find the original position of the dragged node
-                    let origNode = nodes |> findNode nodeId
-                    let origX, origY, origZ = origNode.position
-                    let newX, newY, newZ = px + ox, py + oy, pz + oz
-                    let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
+            | Dragging { offset = ox, oy, oz
+                         lastTouchedNodeId = nodeId } ->
 
-                    let updateNodePosition node =
-                        let nx, ny, nz = node.position
-                        let newPos = nx + dx, ny + dy, nz + dz
-                        { node with position = newPos }
+                // Find the original position of the dragged node
+                let origNode = nodes |> findNode nodeId
+                let origX, origY, origZ = origNode.position
+                let newX, newY, newZ = px + ox, py + oy, pz + oz
+                let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
 
-                    let updatedNodes = nodes |> mapSelected updateNodePosition
-                    { state with history = commit updatedNodes }
-                | None -> state
+                let updateNodePosition node =
+                    let nx, ny, nz = node.position
+                    let newPos = nx + dx, ny + dy, nz + dz
+                    { node with position = newPos }
+
+                let updatedNodes = nodes |> mapSelected updateNodePosition
+                { state with history = commit updatedNodes }
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
