@@ -8,6 +8,7 @@
     <Compile Include="UndoableStateTests.fs" />
     <Compile Include="NodeStateTests.fs" />
     <Compile Include="ViewModelTests.fs" />
+    <Compile Include="ModelTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,7 @@
 namespace Wilnaatahl.ViewModel
 
+open Wilnaatahl.Model
+open Wilnaatahl.Model.FamilyGraph
 open Wilnaatahl.Model.Initial
 open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.ViewModel.UndoableState
@@ -7,13 +9,9 @@ open Wilnaatahl.ViewModel.UndoableState
 open Fable.Core
 #endif
 
-type Family =
-    { Parents: NodeId * NodeId
-      Children: NodeId list }
-
 type DragData =
     { Offset: float * float * float
-      LastTouchedNodeId: NodeId }
+      LastTouchedPersonId: PersonId }
 
 type DragState =
     | Dragging of DragData
@@ -38,13 +36,13 @@ type SelectionMode =
         | MultiSelect -> false
 
 type Msg =
-    | SelectNode of NodeId
+    | SelectNode of PersonId
     | DeselectAll
     | StartDrag of origin: float * float * float
     | DragTo of position: float * float * float
     | EndDrag
     | ToggleSelection of SelectionMode
-    | TouchNode of NodeId // In this context, "touch" means "pointer down".
+    | TouchNode of PersonId // In this context, "touch" means "pointer down".
     | Undo
     | Redo
 
@@ -54,14 +52,14 @@ module ViewState =
             { History: UndoableState<NodeState>
               Families: Family list
               Drag: DragState
-              LastTouchedNodeId: NodeId option
+              LastTouchedPersonId: PersonId option
               SelectionMode: SelectionMode }
 
     let createViewState nodes families =
         { History = createNodeState nodes |> createUndoableState
           Families = List.ofSeq families
           Drag = NotDragging
-          LastTouchedNodeId = None
+          LastTouchedPersonId = None
           SelectionMode = SingleSelect }
 
     let canRedo state = canRedo state.History
@@ -95,12 +93,12 @@ module ViewState =
         let commit nodeState = state.History |> setCurrent nodeState
 
         match msg with
-        | SelectNode nodeId ->
-            if nodes |> isSelected nodeId then
+        | SelectNode personId ->
+            if nodes |> isSelected personId then
                 match state.Drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with History = nodes |> deselect nodeId |> commit }
+                    { state with History = nodes |> deselect personId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
                     { state with Drag = NotDragging }
@@ -112,22 +110,22 @@ module ViewState =
                 match state.SelectionMode with
                 | SingleSelect ->
                     { state with
-                        History = nodes |> deselectAll |> select nodeId |> commit
+                        History = nodes |> deselectAll |> select personId |> commit
                         Drag = NotDragging }
                 | MultiSelect ->
                     { state with
-                        History = nodes |> select nodeId |> commit
+                        History = nodes |> select personId |> commit
                         Drag = NotDragging }
         | DeselectAll ->
             { state with
                 History = nodes |> deselectAll |> commit
                 Drag = NotDragging }
         | StartDrag (px, py, pz) ->
-            match state.LastTouchedNodeId with
-            | Some nodeId ->
+            match state.LastTouchedPersonId with
+            | Some personId ->
                 // Calculate the offset between the click point and the co-ordinates
                 // of the node that was dragged.
-                let node = nodes |> findNode nodeId
+                let node = nodes |> findNode personId
                 let nx, ny, nz = node.Position
                 let offset = nx - px, ny - py, nz - pz
 
@@ -138,15 +136,15 @@ module ViewState =
                     Drag =
                         Dragging
                             { Offset = offset
-                              LastTouchedNodeId = nodeId } }
+                              LastTouchedPersonId = personId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
             match state.Drag with
             | Dragging { Offset = ox, oy, oz
-                         LastTouchedNodeId = nodeId } ->
+                         LastTouchedPersonId = personId } ->
 
                 // Find the original position of the dragged node
-                let origNode = nodes |> findNode nodeId
+                let origNode = nodes |> findNode personId
                 let origX, origY, origZ = origNode.Position
                 let newX, newY, newZ = px + ox, py + oy, pz + oz
                 let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
@@ -176,7 +174,7 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 SelectionMode = mode }
-        | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
+        | TouchNode personId -> { state with LastTouchedPersonId = Some personId }
         | Undo -> { state with History = undo state.History }
         | Redo -> { state with History = redo state.History }
 
@@ -214,23 +212,16 @@ type ViewModel() =
 
 module Initial =
     let nodes =
-        [ { Id = NodeId 0
-            Position = -1.0, 0.0, 0.0
-            Person = people[0] }
-          { Id = NodeId 1
-            Position = 1.0, 0.0, 0.0
-            Person = people[1] }
-          { Id = NodeId 2
-            Position = -2.0, -2.0, 0.0
-            Person = people[2] }
-          { Id = NodeId 3
-            Position = 0.0, -2.0, 0.0
-            Person = people[3] }
-          { Id = NodeId 4
-            Position = 2.0, -2.0, 0.0
-            Person = people[4] } ]
+        [ { Position = -1.0, 0.0, 0.0
+            Person = familyGraph |> findPerson (PersonId 0) }
+          { Position = 1.0, 0.0, 0.0
+            Person = familyGraph |> findPerson (PersonId 1) }
+          { Position = -2.0, -2.0, 0.0
+            Person = familyGraph |> findPerson (PersonId 2) }
+          { Position = 0.0, -2.0, 0.0
+            Person = familyGraph |> findPerson (PersonId 3) }
+          { Position = 2.0, -2.0, 0.0
+            Person = familyGraph |> findPerson (PersonId 4) } ]
         |> Seq.ofList
 
-    let families =
-        [ { Parents = NodeId 0, NodeId 1
-            Children = [ NodeId 2; NodeId 3; NodeId 4 ] } ]
+    let families = createFamilies familyGraph
