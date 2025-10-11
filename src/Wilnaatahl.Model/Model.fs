@@ -38,13 +38,6 @@ type ParentChildRelationship = { Parent: PersonId; Child: PersonId }
 /// the missing parent is modeled as a Person with no extra non-identifying information.
 type CoParentRelationship = { Mother: PersonId; Father: PersonId }
 
-/// This is a handy data structure for rendering the connectors between members of an
-/// immediate family. It's here for convenience despite being useful primarily in the ViewModel
-/// and View layers, since it's produced by FamilyGraph.
-type Family =
-    { Parents: PersonId * PersonId
-      Children: PersonId list }
-
 module FamilyGraph =
     type FamilyGraph =
         private
@@ -85,6 +78,8 @@ module FamilyGraph =
           ParentChildRelationshipsByParent = parentChildMap
           CoParentRelationships = coParents }
 
+    let enumerateCoParents graph = graph.CoParentRelationships
+
     let findPerson (PersonId personId) graph = graph.People |> Map.find personId
 
     let findChildren (PersonId personId) graph =
@@ -94,21 +89,8 @@ module FamilyGraph =
         | Some rels -> rels |> List.map (fun r -> r.Child) |> Set.ofList
         | None -> Set.empty
 
-    let createFamilies graph =
-        seq {
-            for rel in graph.CoParentRelationships do
-                let childrenOfMother = findChildren rel.Mother graph
-                let childrenOfFather = findChildren rel.Father graph
-
-                yield
-                    { Parents = rel.Mother, rel.Father
-                      Children =
-                        Set.intersect childrenOfMother childrenOfFather
-                        |> Set.toList }
-        }
-
 module Initial =
-    let private peopleAndParents =
+    let peopleAndParents =
         [ { Id = PersonId 0
             Label = None
             Shape = Sphere
@@ -145,5 +127,3 @@ module Initial =
           Some
               { Mother = PersonId 0
                 Father = PersonId 1 } ]
-
-    let familyGraph = FamilyGraph.createFamilyGraph peopleAndParents

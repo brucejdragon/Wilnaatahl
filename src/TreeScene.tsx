@@ -4,9 +4,9 @@ import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import * as THREE from "three";
-import { Family } from "./generated/Model";
 import { TreeNode } from "./generated/NodeState";
 import {
+  Family,
   Msg_SelectNode,
   Msg_DeselectAll,
   Msg_ToggleSelection,

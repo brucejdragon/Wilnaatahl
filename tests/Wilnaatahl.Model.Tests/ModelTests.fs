@@ -6,13 +6,14 @@ open System.Collections.Generic
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 
-let person id name shape =
+let private person id name shape =
     { Id = PersonId id
       Label = Some name
       Shape = shape
       DateOfBirth = None
       DateOfDeath = None }
 
+// Test data is public because they are shared by other tests.
 let p0 = person 0 "Mother" Sphere
 let p1 = person 1 "Father" Cube
 let p2 = person 2 "Child1" Sphere
@@ -29,20 +30,6 @@ let peopleAndParents =
       p2, Some coParents
       p3, Some coParents
       p4, Some coParents ]
-
-[<Fact>]
-let ``createFamilies produces correct results`` () =
-    let graph = createFamilyGraph peopleAndParents
-    // createFamilies returns correct family
-    let families = createFamilies graph |> Seq.toList
-    families.Length =! 1
-    let fam = families.Head
-    fam.Parents =! (PersonId 0, PersonId 1)
-
-    Set.ofList fam.Children
-    =! Set.ofList [ PersonId 2
-                    PersonId 3
-                    PersonId 4 ]
 
 [<Fact>]
 let ``findPerson returns correct person for all ids`` () =
@@ -80,4 +67,10 @@ let ``createFamilyGraph handles empty input`` () =
     |> raises<KeyNotFoundException>
 
     findChildren (PersonId 0) graph =! Set.empty
-    createFamilies graph |> Seq.isEmpty =! true
+    enumerateCoParents graph =! Set.empty
+
+[<Fact>]
+let ``enumerateCoParents returns all co-parent relationships`` () =
+    let graph = createFamilyGraph peopleAndParents
+    let coParentsSet = enumerateCoParents graph
+    coParentsSet =! Set.ofList [ coParents ]

@@ -6,7 +6,7 @@ open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 open Wilnaatahl.ViewModel.NodeState
 
-let samplePerson id name =
+let private treeNode id name =
     { Position = float id, float id, 0.0
       Person =
         { Id = PersonId id
@@ -15,10 +15,11 @@ let samplePerson id name =
           DateOfBirth = None
           DateOfDeath = None } }
 
-let node1 = samplePerson 1 "Alice"
-let node2 = samplePerson 2 "Bob"
-let node3 = samplePerson 3 "Carol"
-let node4 = samplePerson 4 "Dave"
+// Test data is public because they are shared by other tests.
+let node1 = treeNode 1 "Alice"
+let node2 = treeNode 2 "Bob"
+let node3 = treeNode 3 "Carol"
+let node4 = treeNode 4 "Dave"
 
 let initialNodes = [ node1; node2; node3; node4 ]
 

@@ -6,17 +6,17 @@ open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 open Wilnaatahl.Tests.NodeStateTests
 
-let family =
+let private family =
     { Parents = PersonId 1, PersonId 2
       Children = [ PersonId 3; PersonId 4 ] }
 
-let families = [ family ]
+let private families = [ family ]
 
-let viewModel = ViewModel() :> IViewModel
+let private viewModel = ViewModel() :> IViewModel
 
-let initialState = viewModel.CreateInitialViewState(initialNodes, families)
+let private initialState = viewModel.CreateInitialViewState(initialNodes, families)
 
-let update msg state = viewModel.Update state msg
+let private update msg state = viewModel.Update state msg
 
 [<Fact>]
 let ``CanUndo and CanRedo reflect undo/redo state`` () =

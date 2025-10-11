@@ -46,6 +46,12 @@ type Msg =
     | Undo
     | Redo
 
+/// This is a handy data structure for rendering the connectors between members of an
+/// immediate family.
+type Family =
+    { Parents: PersonId * PersonId
+      Children: PersonId list }
+
 module ViewState =
     type ViewState =
         private
@@ -210,18 +216,38 @@ type ViewModel() =
         member _.ShouldEnableOrbitControls state = shouldEnableOrbitControls state
         member _.Update state msg = update state msg
 
-module Initial =
-    let nodes =
-        [ { Position = -1.0, 0.0, 0.0
-            Person = familyGraph |> findPerson (PersonId 0) }
-          { Position = 1.0, 0.0, 0.0
-            Person = familyGraph |> findPerson (PersonId 1) }
-          { Position = -2.0, -2.0, 0.0
-            Person = familyGraph |> findPerson (PersonId 2) }
-          { Position = 0.0, -2.0, 0.0
-            Person = familyGraph |> findPerson (PersonId 3) }
-          { Position = 2.0, -2.0, 0.0
-            Person = familyGraph |> findPerson (PersonId 4) } ]
-        |> Seq.ofList
+// Functionality to initialize the core ViewModel data structures in an interface for easier consumption from TypeScript.
+type IGraphViewFactory =
+    abstract LoadGraph: unit -> FamilyGraph
+    abstract ExtractFamilies: FamilyGraph -> seq<Family>
+    abstract LayoutTreeNodes: FamilyGraph -> seq<TreeNode>
 
-    let families = createFamilies familyGraph
+type GraphViewFactory() =
+    interface IGraphViewFactory with
+        member _.LoadGraph() = createFamilyGraph peopleAndParents
+
+        member _.ExtractFamilies familyGraph =
+            seq {
+                for rel in enumerateCoParents familyGraph do
+                    let childrenOfMother = findChildren rel.Mother familyGraph
+                    let childrenOfFather = findChildren rel.Father familyGraph
+
+                    yield
+                        { Parents = rel.Mother, rel.Father
+                          Children =
+                            Set.intersect childrenOfMother childrenOfFather
+                            |> Set.toList }
+            }
+
+        member _.LayoutTreeNodes familyGraph =
+            [ { Position = -1.0, 0.0, 0.0
+                Person = familyGraph |> findPerson (PersonId 0) }
+              { Position = 1.0, 0.0, 0.0
+                Person = familyGraph |> findPerson (PersonId 1) }
+              { Position = -2.0, -2.0, 0.0
+                Person = familyGraph |> findPerson (PersonId 2) }
+              { Position = 0.0, -2.0, 0.0
+                Person = familyGraph |> findPerson (PersonId 3) }
+              { Position = 2.0, -2.0, 0.0
+                Person = familyGraph |> findPerson (PersonId 4) } ]
+            |> Seq.ofList
