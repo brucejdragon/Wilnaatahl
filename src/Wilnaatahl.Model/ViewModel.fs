@@ -11,7 +11,7 @@ open Fable.Core
 
 type DragData =
     { Offset: float * float * float
-      LastTouchedPersonId: PersonId }
+      LastTouchedNodeId: NodeId }
 
 type DragState =
     | Dragging of DragData
@@ -36,21 +36,21 @@ type SelectionMode =
         | MultiSelect -> false
 
 type Msg =
-    | SelectNode of PersonId
+    | SelectNode of NodeId
     | DeselectAll
     | StartDrag of origin: float * float * float
     | DragTo of position: float * float * float
     | EndDrag
     | ToggleSelection of SelectionMode
-    | TouchNode of PersonId // In this context, "touch" means "pointer down".
+    | TouchNode of NodeId // In this context, "touch" means "pointer down".
     | Undo
     | Redo
 
 /// This is a handy data structure for rendering the connectors between members of an
 /// immediate family.
 type Family =
-    { Parents: PersonId * PersonId
-      Children: PersonId list }
+    { Parents: NodeId * NodeId
+      Children: NodeId list }
 
 module ViewState =
     type ViewState =
@@ -58,14 +58,14 @@ module ViewState =
             { History: UndoableState<NodeState>
               Families: Family list
               Drag: DragState
-              LastTouchedPersonId: PersonId option
+              LastTouchedNodeId: NodeId option
               SelectionMode: SelectionMode }
 
     let createViewState nodes families =
         { History = createNodeState nodes |> createUndoableState
           Families = List.ofSeq families
           Drag = NotDragging
-          LastTouchedPersonId = None
+          LastTouchedNodeId = None
           SelectionMode = SingleSelect }
 
     let canRedo state = canRedo state.History
@@ -99,12 +99,12 @@ module ViewState =
         let commit nodeState = state.History |> setCurrent nodeState
 
         match msg with
-        | SelectNode personId ->
-            if nodes |> isSelected personId then
+        | SelectNode nodeId ->
+            if nodes |> isSelected nodeId then
                 match state.Drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with History = nodes |> deselect personId |> commit }
+                    { state with History = nodes |> deselect nodeId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
                     { state with Drag = NotDragging }
@@ -116,22 +116,22 @@ module ViewState =
                 match state.SelectionMode with
                 | SingleSelect ->
                     { state with
-                        History = nodes |> deselectAll |> select personId |> commit
+                        History = nodes |> deselectAll |> select nodeId |> commit
                         Drag = NotDragging }
                 | MultiSelect ->
                     { state with
-                        History = nodes |> select personId |> commit
+                        History = nodes |> select nodeId |> commit
                         Drag = NotDragging }
         | DeselectAll ->
             { state with
                 History = nodes |> deselectAll |> commit
                 Drag = NotDragging }
         | StartDrag (px, py, pz) ->
-            match state.LastTouchedPersonId with
-            | Some personId ->
+            match state.LastTouchedNodeId with
+            | Some nodeId ->
                 // Calculate the offset between the click point and the co-ordinates
                 // of the node that was dragged.
-                let node = nodes |> findNode personId
+                let node = nodes |> findNode nodeId
                 let nx, ny, nz = node.Position
                 let offset = nx - px, ny - py, nz - pz
 
@@ -142,15 +142,15 @@ module ViewState =
                     Drag =
                         Dragging
                             { Offset = offset
-                              LastTouchedPersonId = personId } }
+                              LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
             match state.Drag with
             | Dragging { Offset = ox, oy, oz
-                         LastTouchedPersonId = personId } ->
+                         LastTouchedNodeId = nodeId } ->
 
                 // Find the original position of the dragged node
-                let origNode = nodes |> findNode personId
+                let origNode = nodes |> findNode nodeId
                 let origX, origY, origZ = origNode.Position
                 let newX, newY, newZ = px + ox, py + oy, pz + oz
                 let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
@@ -180,7 +180,7 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 SelectionMode = mode }
-        | TouchNode personId -> { state with LastTouchedPersonId = Some personId }
+        | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
         | Undo -> { state with History = undo state.History }
         | Redo -> { state with History = redo state.History }
 
@@ -219,35 +219,60 @@ type ViewModel() =
 // Functionality to initialize the core ViewModel data structures in an interface for easier consumption from TypeScript.
 type IGraphViewFactory =
     abstract LoadGraph: unit -> FamilyGraph
-    abstract ExtractFamilies: FamilyGraph -> seq<Family>
-    abstract LayoutTreeNodes: FamilyGraph -> seq<TreeNode>
+    abstract ExtractFamilies: FamilyGraph -> seq<TreeNode> -> seq<Family>
+    abstract LayoutGraph: FamilyGraph -> string -> seq<TreeNode>
 
 type GraphViewFactory() =
     interface IGraphViewFactory with
         member _.LoadGraph() = createFamilyGraph peopleAndParents
 
-        member _.ExtractFamilies familyGraph =
+        member _.ExtractFamilies familyGraph nodes =
+            let nodesByPersonInWilp =
+                nodes
+                |> Seq.map (fun node -> (PersonId.ToInt node.Person.Id, node.RenderedInWilp), node)
+                |> Map.ofSeq
+
+            let huwilp = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
+
+            // Each Person appears at most once in a rendered Wilp, so this mapping is guaranteed to be unique.
+            let personIdToNodeId wilp personId =
+                nodesByPersonInWilp
+                |> Map.tryFind (PersonId.ToInt personId, wilp)
+                |> Option.map _.Id
+
             seq {
                 for rel in enumerateCoParents familyGraph do
                     let childrenOfMother = findChildren rel.Mother familyGraph
                     let childrenOfFather = findChildren rel.Father familyGraph
+                    let childrenOfBoth = Set.intersect childrenOfMother childrenOfFather |> Set.toList
 
-                    yield
-                        { Parents = rel.Mother, rel.Father
-                          Children =
-                            Set.intersect childrenOfMother childrenOfFather
-                            |> Set.toList }
+                    for wilp in huwilp do
+                        let mapId = personIdToNodeId wilp
+                        match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
+                        | Some motherId, Some fatherId, (_::_ as childrenIds) ->
+                            yield { Parents = motherId, fatherId; Children = childrenIds }
+                        | _ -> () // Nothing to render since we need both parents and at least one child.
             }
 
-        member _.LayoutTreeNodes familyGraph =
-            [ { Position = -1.0, 0.0, 0.0
+        member _.LayoutGraph familyGraph focusedWilp =
+            [ { Id = NodeId 0
+                RenderedInWilp = focusedWilp
+                Position = -1.0, 0.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 0) }
-              { Position = 1.0, 0.0, 0.0
+              { Id = NodeId 1
+                RenderedInWilp = focusedWilp
+                Position = 1.0, 0.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 1) }
-              { Position = -2.0, -2.0, 0.0
+              { Id = NodeId 2
+                RenderedInWilp = focusedWilp
+                Position = -2.0, -2.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 2) }
-              { Position = 0.0, -2.0, 0.0
+              { Id = NodeId 3
+                RenderedInWilp = focusedWilp
+                Position = 0.0, -2.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 3) }
-              { Position = 2.0, -2.0, 0.0
+              { Id = NodeId 4
+                RenderedInWilp = focusedWilp
+                Position = 2.0, -2.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 4) } ]
             |> Seq.ofList

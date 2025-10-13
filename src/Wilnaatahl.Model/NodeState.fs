@@ -5,9 +5,20 @@ open Wilnaatahl.Model
 open Fable.Core
 #endif
 
+/// Represents a unique identifier for a renderable node.
+/// There can be more than one renderable node per Person, so this is distinct from PersonId.
+#if FABLE_COMPILER
+[<Erase>]
+#endif
+type NodeId =
+    | NodeId of int
+    static member ToInt(NodeId nodeId) = nodeId
+
 /// Represents a node in the tree.
 type TreeNode =
-    { Position: float * float * float
+    { Id: NodeId
+      RenderedInWilp: string
+      Position: float * float * float
       Person: Person }
 
 /// Encapsulates the state of all nodes and selection.
@@ -20,21 +31,21 @@ module NodeState =
     let createNodeState nodes =
         { Nodes =
             nodes
-            |> Seq.map (fun node -> PersonId.ToInt node.Person.Id, node)
+            |> Seq.map (fun node -> NodeId.ToInt node.Id, node)
             |> Map.ofSeq
           SelectedNodes = Map.empty }
 
-    let deselect (PersonId personId) state =
-        match state.SelectedNodes |> Map.tryFind personId with
+    let deselect (NodeId nodeId) state =
+        match state.SelectedNodes |> Map.tryFind nodeId with
         | Some node ->
             { state with
-                SelectedNodes = state.SelectedNodes |> Map.remove personId
-                Nodes = state.Nodes |> Map.add personId node }
+                SelectedNodes = state.SelectedNodes |> Map.remove nodeId
+                Nodes = state.Nodes |> Map.add nodeId node }
         | None -> state
 
     let deselectAll state =
         let add ns node =
-            ns |> Map.add (PersonId.ToInt node.Person.Id) node
+            ns |> Map.add (NodeId.ToInt node.Id) node
 
         let newNodes =
             state.SelectedNodes.Values
@@ -44,27 +55,27 @@ module NodeState =
             SelectedNodes = Map.empty
             Nodes = newNodes }
 
-    let findNode (PersonId personId) state =
+    let findNode (NodeId nodeId) state =
         // Look in selectedNodes first, then nodes. This is on the theory that
         // lookups are more frequent when updating the positions of selected nodes
         // during a drag operation.
-        match state.SelectedNodes |> Map.tryFind personId with
+        match state.SelectedNodes |> Map.tryFind nodeId with
         | Some node -> node
-        | None -> Map.find personId state.Nodes
+        | None -> Map.find nodeId state.Nodes
 
-    let isSelected (PersonId personId) state =
-        state.SelectedNodes |> Map.containsKey personId
+    let isSelected (NodeId nodeId) state =
+        state.SelectedNodes |> Map.containsKey nodeId
 
     let mapSelected f state =
         let mappedNodes = state.SelectedNodes |> Map.map (fun _ n -> f n)
         { state with SelectedNodes = mappedNodes }
 
-    let select (PersonId personId) state =
-        match state.Nodes |> Map.tryFind personId with
+    let select (NodeId nodeId) state =
+        match state.Nodes |> Map.tryFind nodeId with
         | Some node ->
             { state with
-                SelectedNodes = state.SelectedNodes |> Map.add personId node
-                Nodes = state.Nodes |> Map.remove personId }
+                SelectedNodes = state.SelectedNodes |> Map.add nodeId node
+                Nodes = state.Nodes |> Map.remove nodeId }
         | None -> state
 
     let selected state =

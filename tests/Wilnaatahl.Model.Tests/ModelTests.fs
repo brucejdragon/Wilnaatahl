@@ -9,6 +9,7 @@ open Wilnaatahl.Model.FamilyGraph
 let private person id name shape =
     { Id = PersonId id
       Label = Some name
+      Wilp = Some "H"
       Shape = shape
       DateOfBirth = None
       DateOfDeath = None }

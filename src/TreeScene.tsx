@@ -102,7 +102,7 @@ function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
 }
 
 function makeFamilyId(parent1: TreeNode, parent2: TreeNode): string {
-  return `${parent1.Person.Id}-${parent2.Person.Id}-family`;
+  return `${parent1.Id}-${parent2.Id}-family`;
 }
 
 function ChildrenGroup({
@@ -135,7 +135,7 @@ function ChildrenGroup({
   var childrenDirectlyBelow = 0;
   for (const child of children) {
     const childPosition = new THREE.Vector3(...child.Position);
-    const childId = child.Person.Id;
+    const childId = child.Id;
     const branchY = branchPosition.y;
 
     var childConnectorKey: React.Key;
@@ -199,8 +199,8 @@ function FamilyGroup({
   // We'll need this for the position of the child connector group.
   const verticalConnectorStart = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
   const familyId = makeFamilyId(parent1, parent2);
-  const parent1Id = parent1.Person.Id;
-  const parent2Id = parent2.Person.Id;
+  const parent1Id = parent1.Id;
+  const parent2Id = parent2.Id;
 
   return (
     <group>
@@ -242,7 +242,7 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
 
   const staticNodes: JSX.Element[] = [];
   for (const node of viewModel.EnumerateUnselectedTreeNodes(state)) {
-    const id = node.Person.Id;
+    const id = node.Id;
     staticNodes.push(
       <TreeNodeMesh
         key={id}
@@ -256,7 +256,7 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
 
   const draggableNodes: JSX.Element[] = [];
   for (const node of viewModel.EnumerateSelectedTreeNodes(state)) {
-    const id = node.Person.Id;
+    const id = node.Id;
     draggableNodes.push(
       <TreeNodeMesh
         key={id}

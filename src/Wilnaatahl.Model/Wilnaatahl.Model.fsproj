@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Model.fs" />
     <Compile Include="UndoableState.fs" />
+    <Compile Include="Model.fs" />
     <Compile Include="NodeState.fs" />
     <Compile Include="ViewModel.fs" />
   </ItemGroup>

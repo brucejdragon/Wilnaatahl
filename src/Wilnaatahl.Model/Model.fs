@@ -5,8 +5,7 @@ open System
 open Fable.Core
 #endif
 
-/// Represents a unique identifier for a person. This is the universal key into all
-/// data structures in the application.
+/// Represents a unique identifier for a person.
 #if FABLE_COMPILER
 [<Erase>]
 #endif
@@ -26,6 +25,7 @@ type NodeShape =
 type Person =
     { Id: PersonId
       Label: string option
+      Wilp: string option
       Shape: NodeShape
       DateOfBirth: DateOnly option
       DateOfDeath: DateOnly option }
@@ -93,18 +93,21 @@ module Initial =
     let peopleAndParents =
         [ { Id = PersonId 0
             Label = None
+            Wilp = Some "H"
             Shape = Sphere
             DateOfBirth = None
             DateOfDeath = None },
           None
           { Id = PersonId 1
             Label = Some "GGGG Grandfather"
+            Wilp = None
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
           None
           { Id = PersonId 2
             Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
+            Wilp = Some "H"
             Shape = Sphere
             DateOfBirth = None
             DateOfDeath = None },
@@ -113,6 +116,7 @@ module Initial =
                 Father = PersonId 1 }
           { Id = PersonId 3
             Label = Some "GGG Granduncle H"
+            Wilp = Some "H"
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
@@ -121,6 +125,7 @@ module Initial =
                 Father = PersonId 1 }
           { Id = PersonId 4
             Label = Some "GGG Granduncle N"
+            Wilp = Some "H"
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
