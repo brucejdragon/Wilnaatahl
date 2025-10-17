@@ -218,41 +218,44 @@ type ViewModel() =
 
 // Functionality to initialize the core ViewModel data structures in an interface for easier consumption from TypeScript.
 type IGraphViewFactory =
-    abstract LoadGraph: unit -> FamilyGraph
     abstract ExtractFamilies: FamilyGraph -> seq<TreeNode> -> seq<Family>
-    abstract LayoutGraph: FamilyGraph -> string -> seq<TreeNode>
+    abstract FirstWilp: FamilyGraph -> Wilp
+    abstract LayoutGraph: FamilyGraph -> Wilp -> seq<TreeNode>
+    abstract LoadGraph: unit -> FamilyGraph
 
 type GraphViewFactory() =
     interface IGraphViewFactory with
-        member _.LoadGraph() = createFamilyGraph peopleAndParents
-
         member _.ExtractFamilies familyGraph nodes =
             let nodesByPersonInWilp =
                 nodes
-                |> Seq.map (fun node -> (PersonId.ToInt node.Person.Id, node.RenderedInWilp), node)
+                |> Seq.map (fun node -> (node.Person.Id.AsInt, node.RenderedInWilp), node.Id)
                 |> Map.ofSeq
 
-            let huwilp = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
-
             // Each Person appears at most once in a rendered Wilp, so this mapping is guaranteed to be unique.
-            let personIdToNodeId wilp personId =
+            let personIdToNodeId wilp (personId: PersonId) =
                 nodesByPersonInWilp
-                |> Map.tryFind (PersonId.ToInt personId, wilp)
-                |> Option.map _.Id
+                |> Map.tryFind (personId.AsInt, wilp)
+
+            let huwilpToRender = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
 
             seq {
-                for rel in enumerateCoParents familyGraph do
+                for rel in coparents familyGraph do
                     let childrenOfMother = findChildren rel.Mother familyGraph
                     let childrenOfFather = findChildren rel.Father familyGraph
                     let childrenOfBoth = Set.intersect childrenOfMother childrenOfFather |> Set.toList
 
-                    for wilp in huwilp do
+                    for wilp in huwilpToRender do
                         let mapId = personIdToNodeId wilp
                         match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
                         | Some motherId, Some fatherId, (_::_ as childrenIds) ->
                             yield { Parents = motherId, fatherId; Children = childrenIds }
                         | _ -> () // Nothing to render since we need both parents and at least one child.
             }
+
+        member _.FirstWilp familyGraph = 
+            familyGraph
+            |> huwilp
+            |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
             [ { Id = NodeId 0
@@ -276,3 +279,5 @@ type GraphViewFactory() =
                 Position = 2.0, -2.0, 0.0
                 Person = familyGraph |> findPerson (PersonId 4) } ]
             |> Seq.ofList
+
+        member _.LoadGraph() = createFamilyGraph peopleAndParents

@@ -11,7 +11,19 @@ open Fable.Core
 #endif
 type PersonId =
     | PersonId of int
-    static member ToInt(PersonId personId) = personId
+    member this.AsInt =
+        let (PersonId personId) = this
+        personId
+
+/// Represents a Wilp; Strongly typed to distinguish a Wilp name from other strings.
+#if FABLE_COMPILER
+[<Erase>]
+#endif
+type Wilp =
+    | Wilp of string
+    member this.Name =
+        let (Wilp name) = this
+        name
 
 /// Stand-in for Gender until we decide how best to handle it.
 #if FABLE_COMPILER
@@ -24,8 +36,8 @@ type NodeShape =
 /// Everything we know about a person in the family tree.
 type Person =
     { Id: PersonId
-      Label: string option
-      Wilp: string option
+      Label: string option // TODO: Commit to schema for names (colonial vs. traditional)
+      Wilp: Wilp option
       Shape: NodeShape
       DateOfBirth: DateOnly option
       DateOfDeath: DateOnly option }
@@ -43,12 +55,13 @@ module FamilyGraph =
         private
             { People: Map<int, Person>
               ParentChildRelationshipsByParent: Map<int, ParentChildRelationship list>
-              CoParentRelationships: Set<CoParentRelationship> }
+              CoParentRelationships: Set<CoParentRelationship>
+              Huwilp: Set<Wilp> }
 
     let createFamilyGraph (peopleAndParents: seq<Person * CoParentRelationship option>) =
         let peopleMap =
             peopleAndParents
-            |> Seq.map (fun (p, _) -> PersonId.ToInt p.Id, p)
+            |> Seq.map (fun (p, _) -> p.Id.AsInt, p)
             |> Map.ofSeq
 
         let coParents =
@@ -70,15 +83,23 @@ module FamilyGraph =
                               Child = person.Id }
                     | None -> () // Person has no recorded parents so they are a "root" in the family multi-graph.
             }
-            |> Seq.groupBy (fun rel -> PersonId.ToInt rel.Parent)
+            |> Seq.groupBy (fun rel -> rel.Parent.AsInt)
             |> Seq.map (fun (parent, children) -> parent, children |> List.ofSeq)
             |> Map.ofSeq
 
+        let huwilp =
+            peopleAndParents
+            |> Seq.choose (fun (p, _) -> p.Wilp)
+            |> Set.ofSeq
+
         { People = peopleMap
           ParentChildRelationshipsByParent = parentChildMap
-          CoParentRelationships = coParents }
+          CoParentRelationships = coParents
+          Huwilp = huwilp }
 
-    let enumerateCoParents graph = graph.CoParentRelationships
+    let coparents graph = graph.CoParentRelationships
+
+    let huwilp graph = graph.Huwilp
 
     let findPerson (PersonId personId) graph = graph.People |> Map.find personId
 
@@ -93,7 +114,7 @@ module Initial =
     let peopleAndParents =
         [ { Id = PersonId 0
             Label = None
-            Wilp = Some "H"
+            Wilp = Some(Wilp "H")
             Shape = Sphere
             DateOfBirth = None
             DateOfDeath = None },
@@ -107,7 +128,7 @@ module Initial =
           None
           { Id = PersonId 2
             Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
-            Wilp = Some "H"
+            Wilp = Some(Wilp "H")
             Shape = Sphere
             DateOfBirth = None
             DateOfDeath = None },
@@ -116,7 +137,7 @@ module Initial =
                 Father = PersonId 1 }
           { Id = PersonId 3
             Label = Some "GGG Granduncle H"
-            Wilp = Some "H"
+            Wilp = Some(Wilp "H")
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
@@ -125,7 +146,7 @@ module Initial =
                 Father = PersonId 1 }
           { Id = PersonId 4
             Label = Some "GGG Granduncle N"
-            Wilp = Some "H"
+            Wilp = Some(Wilp "H")
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },

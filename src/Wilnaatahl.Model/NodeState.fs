@@ -12,12 +12,14 @@ open Fable.Core
 #endif
 type NodeId =
     | NodeId of int
-    static member ToInt(NodeId nodeId) = nodeId
+    member this.AsInt =
+        let (NodeId nodeId) = this
+        nodeId
 
 /// Represents a node in the tree.
 type TreeNode =
     { Id: NodeId
-      RenderedInWilp: string
+      RenderedInWilp: Wilp
       Position: float * float * float
       Person: Person }
 
@@ -31,7 +33,7 @@ module NodeState =
     let createNodeState nodes =
         { Nodes =
             nodes
-            |> Seq.map (fun node -> NodeId.ToInt node.Id, node)
+            |> Seq.map (fun node -> node.Id.AsInt, node)
             |> Map.ofSeq
           SelectedNodes = Map.empty }
 
@@ -44,8 +46,7 @@ module NodeState =
         | None -> state
 
     let deselectAll state =
-        let add ns node =
-            ns |> Map.add (NodeId.ToInt node.Id) node
+        let add ns node = ns |> Map.add node.Id.AsInt node
 
         let newNodes =
             state.SelectedNodes.Values

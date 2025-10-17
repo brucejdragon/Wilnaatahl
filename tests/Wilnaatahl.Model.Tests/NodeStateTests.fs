@@ -14,7 +14,7 @@ let private treeNode id =
         |> fst
 
     { Id = NodeId id
-      RenderedInWilp = "H"
+      RenderedInWilp = Wilp "H"
       Position = float id, float id, 0.0
       Person = person }
 

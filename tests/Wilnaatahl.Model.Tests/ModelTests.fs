@@ -6,20 +6,20 @@ open System.Collections.Generic
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 
-let private person id name shape =
+let private person id name shape wilp =
     { Id = PersonId id
       Label = Some name
-      Wilp = Some "H"
+      Wilp = wilp
       Shape = shape
       DateOfBirth = None
       DateOfDeath = None }
 
 // Test data is public because they are shared by other tests.
-let p0 = person 0 "Mother" Sphere
-let p1 = person 1 "Father" Cube
-let p2 = person 2 "Child1" Sphere
-let p3 = person 3 "Child2" Cube
-let p4 = person 4 "Child3" Cube
+let p0 = person 0 "Mother" Sphere (Some(Wilp "H"))
+let p1 = person 1 "Father" Cube None
+let p2 = person 2 "Child1" Sphere (Some(Wilp "H"))
+let p3 = person 3 "Child2" Cube (Some(Wilp "L"))
+let p4 = person 4 "Child3" Cube (Some(Wilp "H"))
 
 let coParents =
     { Mother = PersonId 0
@@ -68,10 +68,16 @@ let ``createFamilyGraph handles empty input`` () =
     |> raises<KeyNotFoundException>
 
     findChildren (PersonId 0) graph =! Set.empty
-    enumerateCoParents graph =! Set.empty
+    coparents graph =! Set.empty
 
 [<Fact>]
-let ``enumerateCoParents returns all co-parent relationships`` () =
+let ``coparents returns all co-parent relationships`` () =
     let graph = createFamilyGraph peopleAndParents
-    let coParentsSet = enumerateCoParents graph
+    let coParentsSet = coparents graph
     coParentsSet =! Set.ofList [ coParents ]
+
+[<Fact>]
+let ``huwilp returns all unique huwilp`` () =
+    let graph = createFamilyGraph peopleAndParents
+    let huwilpSet = huwilp graph
+    huwilpSet =! Set.ofList [ Wilp "H"; Wilp "L" ]
