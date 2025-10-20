@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { TreeNode } from "./generated/NodeState";
 import {
   Family,
+  Msg_$union,
   Msg_SelectNode,
   Msg_DeselectAll,
   Msg_ToggleSelection,
@@ -17,13 +18,27 @@ import {
   Msg_Undo,
   Msg_Redo,
   ViewModel,
+  ViewState_ViewState,
 } from "./generated/ViewModel";
 import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 
-type TreeSceneProps = {
-  initialNodes: Iterable<TreeNode>;
-  initialFamilies: Iterable<Family>;
+type WorldContextData = {
+  viewModel: ViewModel;
+  state: ViewState_ViewState;
+  dispatch: React.ActionDispatch<[msg: Msg_$union]>;
 };
+
+const WorldContext = React.createContext<WorldContextData | null>(null);
+
+export function useWorld() {
+  const context = React.useContext(WorldContext);
+
+  if (!context) {
+    throw new Error("useWorld() must be used within a WorldContext provider");
+  }
+
+  return context;
+}
 
 function TreeNodeMesh({
   node,
@@ -224,13 +239,8 @@ function FamilyGroup({
   );
 }
 
-export default function TreeScene({ initialNodes, initialFamilies }: TreeSceneProps) {
-  const viewModel = new ViewModel();
-  const [state, dispatch] = React.useReducer(
-    viewModel.Update,
-    [initialNodes, initialFamilies],
-    viewModel.CreateInitialViewState
-  );
+export function WilpGroup() {
+  const { viewModel, state, dispatch } = useWorld();
 
   const handlePointerDown = (id: number) => (e: ThreeEvent<PointerEvent>) => {
     dispatch(Msg_TouchNode(id));
@@ -289,6 +299,42 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
     dispatch(Msg_DragTo(local.x, local.y, local.z));
   };
 
+  // We have two groups below to control the positioning of the wilp in the scene.
+  // The outer group defines a central vertical axis that should be shared by all huwilp,
+  // and sets the rotation of this wilp around that axis. The inner group sets the position
+  // of the wilp relative to that axis.
+  return (
+    <group rotation-y={0}>
+      <group position={[0, 1, 0]}>
+        <DragControls
+          autoTransform={false}
+          axisLock="z"
+          onDragStart={(origin) => dispatch(Msg_StartDrag(origin.x, origin.y, origin.z))}
+          onDrag={handleDrag}
+          onDragEnd={() => dispatch(Msg_EndDrag())}
+        >
+          {draggableNodes}
+        </DragControls>
+        {staticNodes}
+        {familyGroups}
+      </group>
+    </group>
+  );
+}
+
+type TreeSceneProps = {
+  initialNodes: Iterable<TreeNode>;
+  initialFamilies: Iterable<Family>;
+};
+
+export default function TreeScene({ initialNodes, initialFamilies }: TreeSceneProps) {
+  const viewModel = new ViewModel();
+  const [state, dispatch] = React.useReducer(
+    viewModel.Update,
+    [initialNodes, initialFamilies],
+    viewModel.CreateInitialViewState
+  );
+
   return (
     <div
       style={{
@@ -336,19 +382,9 @@ export default function TreeScene({ initialNodes, initialFamilies }: TreeScenePr
           {/* Additional point light for more dynamic lighting */}
           <pointLight position={[1, -1, 2]} intensity={5} castShadow />
           <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
-          <group position={[0, 1, 0]}>
-            <DragControls
-              autoTransform={false}
-              axisLock="z"
-              onDragStart={(origin) => dispatch(Msg_StartDrag(origin.x, origin.y, origin.z))}
-              onDrag={handleDrag}
-              onDragEnd={() => dispatch(Msg_EndDrag())}
-            >
-              {draggableNodes}
-            </DragControls>
-            {staticNodes}
-            {familyGroups}
-          </group>
+          <WorldContext value={{ viewModel, state, dispatch }}>
+            <WilpGroup />
+          </WorldContext>
         </Canvas>
       </div>
     </div>
