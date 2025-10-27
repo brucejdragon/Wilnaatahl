@@ -19,11 +19,7 @@ type PersonId =
 #if FABLE_COMPILER
 [<Erase>]
 #endif
-type Wilp =
-    | Wilp of string
-    member this.Name =
-        let (Wilp name) = this
-        name
+type Wilp = Wilp of string
 
 /// Stand-in for Gender until we decide how best to handle it.
 #if FABLE_COMPILER

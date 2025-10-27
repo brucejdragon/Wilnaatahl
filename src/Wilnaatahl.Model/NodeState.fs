@@ -21,6 +21,8 @@ type TreeNode =
     { Id: NodeId
       RenderedInWilp: Wilp
       Position: float * float * float
+      TargetPosition: float * float * float
+      IsAnimating: bool
       Person: Person }
 
 /// Encapsulates the state of all nodes and selection.
@@ -71,6 +73,19 @@ module NodeState =
         let mappedNodes = state.SelectedNodes |> Map.map (fun _ n -> f n)
         { state with SelectedNodes = mappedNodes }
 
+    let private mapAll f state =
+        let mappedNodes = state.Nodes |> Map.map (fun _ n -> f n)
+
+        { state with
+            SelectedNodes = state |> mapSelected f |> _.SelectedNodes
+            Nodes = mappedNodes }
+
+    let replace (NodeId nodeIdInt as nodeId) newNode state =
+        if isSelected nodeId state then
+            { state with SelectedNodes = state.SelectedNodes |> Map.add nodeIdInt newNode }
+        else
+            { state with Nodes = state.Nodes |> Map.add nodeIdInt newNode }
+
     let select (NodeId nodeId) state =
         match state.Nodes |> Map.tryFind nodeId with
         | Some node ->
@@ -84,3 +99,13 @@ module NodeState =
 
     let unselected state =
         state.Nodes |> Map.values :> seq<TreeNode>
+
+    let animateToNewNodePositions newNodeState state =
+        state
+        |> mapAll (fun node ->
+            let newNode = newNodeState |> findNode node.Id
+            if node.Position <> newNode.Position then
+                { node with
+                    TargetPosition = newNode.Position
+                    IsAnimating = true }
+            else node)

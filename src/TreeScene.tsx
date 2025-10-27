@@ -1,13 +1,14 @@
 // TreeScene.tsx
-import { Canvas, ThreeEvent } from "@react-three/fiber";
+import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
 import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
-import * as THREE from "three";
+import { MathUtils, Matrix4, Mesh, Quaternion, Vector3 } from "three";
 import { TreeNode } from "./generated/NodeState";
 import {
   Family,
   Msg_$union,
+  Msg_Animate,
   Msg_SelectNode,
   Msg_DeselectAll,
   Msg_ToggleSelection,
@@ -30,7 +31,7 @@ type WorldContextData = {
 
 const WorldContext = React.createContext<WorldContextData | null>(null);
 
-export function useWorld() {
+function useWorld() {
   const context = React.useContext(WorldContext);
 
   if (!context) {
@@ -51,19 +52,34 @@ function TreeNodeMesh({
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
 }) {
+  const { dispatch } = useWorld();
   const selectedNodeColour = "#8B4000"; // Deep, red copper
   const person = node.Person;
   const position = node.Position;
   const label = defaultArg(person.Label, undefined);
+  const ref = React.useRef<Mesh>(null);
+
+  useFrame((_, delta) => {
+    if (!ref.current) {
+      return;
+    }
+
+    ref.current.position.set(...node.Position);
+
+    if (node.IsAnimating) {
+      const lambda = 6;
+      const [x, y, z] = node.Position;
+      const [tx, ty, tz] = node.TargetPosition;
+      const newX = MathUtils.damp(x, tx, lambda, delta);
+      const newY = MathUtils.damp(y, ty, lambda, delta);
+      const newZ = MathUtils.damp(z, tz, lambda, delta);
+      dispatch(Msg_Animate(node.Id, newX, newY, newZ));
+    }
+  });
+
   return (
     <>
-      <mesh
-        position={position}
-        onClick={onClick}
-        onPointerDown={onPointerDown}
-        castShadow
-        receiveShadow
-      >
+      <mesh onClick={onClick} onPointerDown={onPointerDown} castShadow receiveShadow ref={ref}>
         {person.Shape === "sphere" ? (
           <sphereGeometry args={[0.4, 16, 16]} />
         ) : (
@@ -90,12 +106,12 @@ function TreeNodeMesh({
   );
 }
 
-function ConnectorMesh({ from, to }: { from: THREE.Vector3; to: THREE.Vector3 }) {
+function ConnectorMesh({ from, to }: { from: Vector3; to: Vector3 }) {
   const direction = to.clone().sub(from);
   const length = direction.length();
   const mid = from.clone().add(direction.clone().multiplyScalar(0.5));
-  const orientation = new THREE.Quaternion().setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0), // cylinder's up axis
+  const orientation = new Quaternion().setFromUnitVectors(
+    new Vector3(0, 1, 0), // cylinder's up axis
     direction.clone().normalize()
   );
 
@@ -107,7 +123,7 @@ function ConnectorMesh({ from, to }: { from: THREE.Vector3; to: THREE.Vector3 })
   );
 }
 
-function ElbowSphereMesh({ position }: { position: THREE.Vector3 }) {
+function ElbowSphereMesh({ position }: { position: Vector3 }) {
   return (
     <mesh position={position}>
       <sphereGeometry args={[0.03, 16, 16]} />
@@ -126,7 +142,7 @@ function ChildrenGroup({
   children,
 }: {
   familyId: string;
-  position: THREE.Vector3;
+  position: Vector3;
   children: Iterable<TreeNode>;
 }) {
   // Calculate the branch position dynamically based on the highest child node and
@@ -139,7 +155,7 @@ function ChildrenGroup({
     }
   }
 
-  const branchPosition = new THREE.Vector3(position.x, highestChildY + 0.65, position.z);
+  const branchPosition = new Vector3(position.x, highestChildY + 0.65, position.z);
   const connectors: JSX.Element[] = [];
   connectors.push(
     <ConnectorMesh key={`${familyId}-vertical-to-branch`} from={position} to={branchPosition} />
@@ -149,12 +165,12 @@ function ChildrenGroup({
   // the branch position, a right-angle connector with sphere "elbow" is needed.
   var childrenDirectlyBelow = 0;
   for (const child of children) {
-    const childPosition = new THREE.Vector3(...child.Position);
+    const childPosition = new Vector3(...child.Position);
     const childId = child.Id;
     const branchY = branchPosition.y;
 
     var childConnectorKey: React.Key;
-    const junction = new THREE.Vector3(childPosition.x, branchY, childPosition.z);
+    const junction = new Vector3(childPosition.x, branchY, childPosition.z);
     if (childPosition.x !== branchPosition.x || childPosition.z !== branchPosition.z) {
       // Child is not directly below branch, so add right-angle connector with sphere "elbow"
       connectors.push(
@@ -193,12 +209,12 @@ function FamilyGroup({
   children: Iterable<TreeNode>;
 }) {
   // Calculate the vector between the two parent nodes
-  const p1 = new THREE.Vector3(...parent1.Position);
-  const p2 = new THREE.Vector3(...parent2.Position);
+  const p1 = new Vector3(...parent1.Position);
+  const p2 = new Vector3(...parent2.Position);
   const dir = p2.clone().sub(p1).normalize();
 
   // Find a vector perpendicular to dir in the XY plane
-  const perp = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
+  const perp = new Vector3(-dir.y, dir.x, 0).normalize();
 
   // Top and bottom offsets
   const gap = 0.1; // Fixed gap between parent connectors
@@ -212,7 +228,7 @@ function FamilyGroup({
 
   // Calculate the midpoint of the bottom connector between the parents.
   // We'll need this for the position of the child connector group.
-  const verticalConnectorStart = new THREE.Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
+  const verticalConnectorStart = new Vector3().lerpVectors(parent1Bottom, parent2Bottom, 0.5);
   const familyId = makeFamilyId(parent1, parent2);
   const parent1Id = parent1.Id;
   const parent2Id = parent2.Id;
@@ -293,9 +309,9 @@ export function WilpGroup() {
     );
   }
 
-  const handleDrag = (l: THREE.Matrix4) => {
-    const local = new THREE.Vector3();
-    l.decompose(local, new THREE.Quaternion(), new THREE.Vector3());
+  const handleDrag = (l: Matrix4) => {
+    const local = new Vector3();
+    l.decompose(local, new Quaternion(), new Vector3());
     dispatch(Msg_DragTo(local.x, local.y, local.z));
   };
 

@@ -188,7 +188,7 @@ let ``ToggleSelection changes selection mode and clears selection`` () =
     viewModel.EnumerateSelectedTreeNodes state |> Seq.length =! 0
 
 [<Fact>]
-let ``Undo reverts to previous state`` () =
+let ``Undo animates to previous state`` () =
     let state1 =
         initialState
         |> update (SelectNode(NodeId 1))
@@ -199,17 +199,17 @@ let ``Undo reverts to previous state`` () =
 
     let state2 = state1 |> update Undo
 
-    // After undo, node should be at original position.
+    // After undo, node should be set to animate to original position.
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
     let position =
         selected
         |> List.filter (fun n -> n.Id = NodeId 1)
-        |> List.map _.Position
+        |> List.map (fun n -> n.Position, n.TargetPosition, n.IsAnimating)
         |> List.tryHead
-    position =! Some(1.0, 1.0, 0.0)
+    position =! Some((2.0, 2.0, 0.0), (1.0, 1.0, 0.0), true)
 
 [<Fact>]
-let ``Redo advances to next state`` () =
+let ``Redo animates to next state`` () =
     let state1 =
         initialState
         |> update (SelectNode(NodeId 1))
@@ -218,17 +218,18 @@ let ``Redo advances to next state`` () =
         |> update (DragTo(2.0, 2.0, 0.0))
         |> update EndDrag
         |> update Undo
+        |> update (Animate(NodeId 1, 1.0, 1.0, 0.0)) // Undo isn't really finished until animation completes: TODO: This is awkward.
 
     let state2 = state1 |> update Redo
 
-    // After redo, node should be at updated position.
+    // After redo, node should be set to animate to the updated position.
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
     let position =
         selected
         |> List.filter (fun n -> n.Id = NodeId 1)
-        |> List.map _.Position
+        |> List.map (fun n -> n.Position, n.TargetPosition, n.IsAnimating)
         |> List.tryHead
-    position =! Some(2.0, 2.0, 0.0)
+    position =! Some((1.0, 1.0, 0.0), (2.0, 2.0, 0.0), true)
 
 [<Fact>]
 let ``SelectNode when DragEnding does not change selection, resets drag`` () =
@@ -278,3 +279,39 @@ let ``EndDrag when NotDragging does nothing`` () =
     let state = update EndDrag initialState
     // State should be unchanged
     state =! initialState
+
+[<Fact>]
+let ``Animate sets Position to TargetPosition and stops animating when close to target`` () =
+    // Animate to a point very close to the node's TargetPosition (0.0,0.0,0.0)
+    let state = update (Animate(NodeId 1, 0.001, 0.0, 0.0)) initialState
+
+    let node =
+        viewModel.EnumerateUnselectedTreeNodes state
+        |> Seq.find (fun n -> n.Id = NodeId 1)
+
+    node.Position =! node.TargetPosition
+    node.IsAnimating =! false
+
+[<Fact>]
+let ``Animate updates Position and keeps animating when far from target`` () =
+    // Animate to a point far from the node's TargetPosition so animation continues
+    let state = update (Animate(NodeId 1, 2.0, 2.0, 0.0)) initialState
+
+    let node =
+        viewModel.EnumerateUnselectedTreeNodes state
+        |> Seq.find (fun n -> n.Id = NodeId 1)
+
+    node.Position =! (2.0, 2.0, 0.0)
+    node.IsAnimating =! true
+
+[<Fact>]
+let ``StartDrag has no effect when the touched node is animating`` () =
+    // Touch the node then animate it so IsAnimating becomes true
+    let stateAnimating =
+        initialState
+        |> update (TouchNode(NodeId 1))
+        |> update (Animate(NodeId 1, 2.0, 2.0, 0.0))
+
+    // Attempt to start a drag; since node.IsAnimating = true this should do nothing
+    let after = stateAnimating |> update (StartDrag(1.0, 1.0, 0.0))
+    after =! stateAnimating

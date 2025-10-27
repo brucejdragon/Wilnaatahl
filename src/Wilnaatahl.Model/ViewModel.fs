@@ -38,13 +38,14 @@ type SelectionMode =
 type Msg =
     | SelectNode of NodeId
     | DeselectAll
-    | StartDrag of origin: float * float * float
-    | DragTo of position: float * float * float
+    | StartDrag of float * float * float
+    | DragTo of float * float * float
     | EndDrag
     | ToggleSelection of SelectionMode
     | TouchNode of NodeId // In this context, "touch" means "pointer down".
     | Undo
     | Redo
+    | Animate of NodeId * float * float * float
 
 /// This is a handy data structure for rendering the connectors between members of an
 /// immediate family.
@@ -99,6 +100,19 @@ module ViewState =
         let commit nodeState = state.History |> setCurrent nodeState
 
         match msg with
+        | Animate (nodeId, x, y, z) ->
+            let newPosition = x, y, z
+            let node = nodes |> findNode nodeId
+            let delta = 0.01
+            let isAnimationFinished =
+                let tx, ty, tz = node.TargetPosition
+                abs (x - tx) < delta && abs (y - ty) < delta && abs (z - tz) < delta
+            let newNode =
+                { node with
+                    Position = if isAnimationFinished then node.TargetPosition else newPosition
+                    IsAnimating = not isAnimationFinished }
+            let updatedNodes = nodes |> replace nodeId newNode
+            { state with History = commit updatedNodes }
         | SelectNode nodeId ->
             if nodes |> isSelected nodeId then
                 match state.Drag with
@@ -132,17 +146,23 @@ module ViewState =
                 // Calculate the offset between the click point and the co-ordinates
                 // of the node that was dragged.
                 let node = nodes |> findNode nodeId
-                let nx, ny, nz = node.Position
-                let offset = nx - px, ny - py, nz - pz
 
-                // Use this opportunity to save the current node positions before
-                // they start changing for undo/redo.
-                { state with
-                    History = state.History |> saveCurrentForUndo
-                    Drag =
-                        Dragging
-                            { Offset = offset
-                              LastTouchedNodeId = nodeId } }
+                // Dragging is not allowed on animating nodes since it does
+                // weird things like snapshot nodes in the middle of automatic layout.
+                if node.IsAnimating then
+                    state
+                else
+                    let nx, ny, nz = node.Position
+                    let offset = nx - px, ny - py, nz - pz
+
+                    // Use this opportunity to save the current node positions before
+                    // they start changing for undo/redo.
+                    { state with
+                        History = state.History |> saveCurrentForUndo
+                        Drag =
+                            Dragging
+                                { Offset = offset
+                                  LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragTo (px, py, pz) ->
             match state.Drag with
@@ -181,8 +201,14 @@ module ViewState =
                 History = nodes |> deselectAll |> commit
                 SelectionMode = mode }
         | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
-        | Undo -> { state with History = undo state.History }
-        | Redo -> { state with History = redo state.History }
+        | Undo ->
+            let undoneHistory = undo state.History
+            let newNodes = current state.History |> animateToNewNodePositions (current undoneHistory)
+            { state with History = undoneHistory |> setCurrent newNodes }
+        | Redo ->
+            let redoneHistory = redo state.History
+            let newNodes = current state.History |> animateToNewNodePositions (current redoneHistory)
+            { state with History = redoneHistory |> setCurrent newNodes }
 
 open ViewState
 
@@ -260,23 +286,33 @@ type GraphViewFactory() =
         member _.LayoutGraph familyGraph focusedWilp =
             [ { Id = NodeId 0
                 RenderedInWilp = focusedWilp
-                Position = -1.0, 0.0, 0.0
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = -1.0, 0.0, 0.0
+                IsAnimating = true
                 Person = familyGraph |> findPerson (PersonId 0) }
               { Id = NodeId 1
                 RenderedInWilp = focusedWilp
-                Position = 1.0, 0.0, 0.0
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = 1.0, 0.0, 0.0
+                IsAnimating = true
                 Person = familyGraph |> findPerson (PersonId 1) }
               { Id = NodeId 2
                 RenderedInWilp = focusedWilp
-                Position = -2.0, -2.0, 0.0
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = -2.0, -2.0, 0.0
+                IsAnimating = true
                 Person = familyGraph |> findPerson (PersonId 2) }
               { Id = NodeId 3
                 RenderedInWilp = focusedWilp
-                Position = 0.0, -2.0, 0.0
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = 0.0, -2.0, 0.0
+                IsAnimating = true
                 Person = familyGraph |> findPerson (PersonId 3) }
               { Id = NodeId 4
                 RenderedInWilp = focusedWilp
-                Position = 2.0, -2.0, 0.0
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = 2.0, -2.0, 0.0
+                IsAnimating = true
                 Person = familyGraph |> findPerson (PersonId 4) } ]
             |> Seq.ofList
 

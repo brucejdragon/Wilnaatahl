@@ -16,6 +16,8 @@ let private treeNode id =
     { Id = NodeId id
       RenderedInWilp = Wilp "H"
       Position = float id, float id, 0.0
+      TargetPosition = 0.0, 0.0, 0.0
+      IsAnimating = false
       Person = person }
 
 // Test data is public because they are shared by other tests.
