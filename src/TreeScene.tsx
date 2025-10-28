@@ -145,58 +145,30 @@ function ChildrenGroup({
   position: Vector3;
   children: Iterable<TreeNode>;
 }) {
-  // Calculate the branch position dynamically based on the highest child node and
-  // the given midpoint of the bottom connector between the parents.
-  var highestChildY = -Infinity;
-  for (const child of children) {
-    const childY = child.Position[1];
-    if (childY > highestChildY) {
-      highestChildY = childY;
-    }
-  }
+  const childList = Array.from(children);
 
-  const branchPosition = new Vector3(position.x, highestChildY + 0.65, position.z);
-  const connectors: JSX.Element[] = [];
-  connectors.push(
-    <ConnectorMesh key={`${familyId}-vertical-to-branch`} from={position} to={branchPosition} />
+  // Compute highest child Y (or fall back to the connector position Y).
+  const highestChildY =
+    childList.length > 0 ? Math.max(...childList.map((c) => c.Position[1])) : position.y;
+
+  const branchPos = new Vector3(position.x, highestChildY + 0.65, position.z);
+
+  return (
+    <group>
+      <ConnectorMesh key={`${familyId}-vertical-to-branch`} from={position} to={branchPos} />
+      <ElbowSphereMesh key={`${familyId}-junction-sphere`} position={branchPos} />
+      {childList.flatMap((child) => {
+        const childPos = new Vector3(...child.Position);
+        const junction = new Vector3(childPos.x, branchPos.y, childPos.z);
+
+        return [
+          <ConnectorMesh key={`branch-to-${child.Id}-junction`} from={branchPos} to={junction} />,
+          <ElbowSphereMesh key={`${child.Id}-junction-sphere`} position={junction} />,
+          <ConnectorMesh key={`junction-to-${child.Id}`} from={junction} to={childPos} />,
+        ];
+      })}
+    </group>
   );
-
-  // Add connectors from the branch position to each child node. Unless a child node is directly below
-  // the branch position, a right-angle connector with sphere "elbow" is needed.
-  var childrenDirectlyBelow = 0;
-  for (const child of children) {
-    const childPosition = new Vector3(...child.Position);
-    const childId = child.Id;
-    const branchY = branchPosition.y;
-
-    var childConnectorKey: React.Key;
-    const junction = new Vector3(childPosition.x, branchY, childPosition.z);
-    if (childPosition.x !== branchPosition.x || childPosition.z !== branchPosition.z) {
-      // Child is not directly below branch, so add right-angle connector with sphere "elbow"
-      connectors.push(
-        <ConnectorMesh key={`branch-to-${childId}-junction`} from={branchPosition} to={junction} />
-      );
-      connectors.push(<ElbowSphereMesh key={`${childId}-junction-sphere`} position={junction} />);
-      childConnectorKey = `junction-to-${childId}`;
-    } else {
-      // Child is directly below branch, so a straight connector suffices, and we won't
-      // need an "elbow" sphere at the branch point later.
-      childrenDirectlyBelow++;
-      childConnectorKey = `branch-to-${childId}`;
-    }
-
-    connectors.push(<ConnectorMesh key={childConnectorKey} from={junction} to={childPosition} />);
-  }
-
-  // Unless there is a child directly below the branch, add another sphere for the elbow
-  // at the branch end of the connector.
-  if (childrenDirectlyBelow === 0) {
-    connectors.push(
-      <ElbowSphereMesh key={`${familyId}-junction-sphere`} position={branchPosition} />
-    );
-  }
-
-  return <group>{connectors}</group>;
 }
 
 function FamilyGroup({
