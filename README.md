@@ -35,71 +35,26 @@ npm -v     # Should return a recent npm version (e.g. 10.x)
 
 ### ✅ 2. Install the .NET SDK
 
-> Required for building F# code and running Fable.
+This project targets .NET 9. To make setup easier we pin the SDK via `global.json` so the correct SDK is used automatically by the `dotnet` CLI.
 
-Download and install the latest .NET SDK (version 9.0 or newer recommended):  
+If you don't have the pinned SDK installed, install any 9.0.x SDK from:
+
 👉 https://dotnet.microsoft.com/download
 
 Verify installation:
 
 ```powershell
-dotnet --version   # Should return 9.0.x or newer
+dotnet --version   # Should return 9.0.x
 ```
 
-### ✅ 3. Install Fable as a .NET local tool
+### ✅ 3. Restore Local Tools and Dependencies
 
 From the project root, run:
 
 ```powershell
 dotnet tool restore
-```
-
-If you need to install Fable locally (first time setup):
-
-```powershell
-dotnet tool install fable --local
-```
-
-### ✅ 4. Install Project Dependencies
-
-Navigate to the root of the project directory and run:
-
-```powershell
+dotnet restore
 npm install
-```
-
-This installs all dependencies listed in `package.json`, including React, Three.js, and Vite.
-
-### ✅ 5. Set Up Prettier for Code Formatting
-
-Prettier is used to automatically format TypeScript, JavaScript, and .tsx files for consistency.
-
-To format all supported files in the project, run:
-
-```powershell
-npx prettier --write .
-```
-
-You can also use the Prettier extension in VS Code for on-save formatting.
-
-Prettier is configured via the `.prettierrc` file in the project root. Files and folders to ignore are listed in `.prettierignore`.
-
-### ✅ 6. Install `serve` to Preview Production Builds
-
-If you want to serve the `dist` folder (after building) with a static server:
-
-```powershell
-npm install -g serve
-```
-
-Running `serve dist` will start a local static server, typically accessible at: http://localhost:3000
-
-### ✅ 7. Install .NET tools for Code Coverage
-
-Run the following to install the code coverage report generator tool so you can view Code Coverage reports:
-
-```powershell
-dotnet tool install -g dotnet-reportgenerator-globaltool
 ```
 
 ## Commands for Dev Inner Loop
@@ -108,11 +63,13 @@ The following terminal commands are your dev inner loop:
 
 - To build and run in the dev server for iterative development: `npm run dev`
 - To build for deployment: `npm run build`
-- To host the deployment-ready build locally for testing: `serve dist`
+- To host the deployment-ready build locally for testing: `npx serve dist`
 - To run unit tests: `npm test`
+- To format the TypeScript code with Prettier: `npm run format`
+  - Prettier is configured via the `.prettierrc` file in the project root. Files and folders to ignore are listed in `.prettierignore`.
 - To collect Code Coverage data and generate a Code Coverage report:
 
 ```powershell
 npm run coverage                                               # Will output link to coverage .xml file
-npm run report --coveragedatapath=<path-to-coverage-xml-file>  # Pass link to coverage .xml file
+npm run report --coveragefile=<path-to-coverage-xml-file>  # Pass link to coverage .xml file
 ```

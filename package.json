@@ -10,15 +10,14 @@
     "preview": "npm run fable && vite preview",
     "test": "pushd .\\tests\\Wilnaatahl.Model.Tests && dotnet test",
     "coverage": "pushd .\\tests\\Wilnaatahl.Model.Tests && dotnet test --collect:\"XPlat Code Coverage\"",
-    "report": "pushd .\\tests\\Wilnaatahl.Model.Tests && reportgenerator -reports:%npm_config_coveragedatapath% -targetdir:coveragereport -reporttypes:Html && start ./coveragereport/index.html"
+    "report": "pushd .\\tests\\Wilnaatahl.Model.Tests && reportgenerator -reports:%npm_config_coveragefile% -targetdir:coveragereport -reporttypes:Html && start ./coveragereport/index.html",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@types/node": "^24.0.10",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
-    "c8": "^10.1.3",
-    "mocha": "^11.7.2",
     "prettier": "^3.6.2",
     "typescript": "~5.7.2",
     "vite": "^6.3.1"
@@ -26,7 +25,6 @@
   "dependencies": {
     "@react-three/drei": "^10.0.7",
     "@react-three/fiber": "^9.1.2",
-    "papaparse": "^5.5.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "three": "^0.176.0"
