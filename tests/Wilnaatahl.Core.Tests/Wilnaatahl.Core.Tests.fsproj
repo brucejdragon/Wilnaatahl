@@ -5,11 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="UndoableStateTests.fs" />
     <Compile Include="ModelTests.fs" />
-    <Compile Include="NodeStateTests.fs" />
-    <Compile Include="ViewModelTests.fs" />
-    <Compile Include="GraphViewFactoryTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

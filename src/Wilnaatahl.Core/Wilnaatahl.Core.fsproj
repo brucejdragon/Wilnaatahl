@@ -6,10 +6,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="UndoableState.fs" />
+    <Compile Include="ECS/Types.fs" />
+    <Compile Include="ECS/ECS.fs" />
     <Compile Include="Model.fs" />
-    <Compile Include="NodeState.fs" />
-    <Compile Include="ViewModel.fs" />
+    <Compile Include="ViewModel/Vector3.fs" />
+    <Compile Include="ViewModel/Scene.fs" />
+    <Compile Include="ViewModel/ViewModel.fs" />
+    <Compile Include="Systems/Events.fs" />
+    <Compile Include="Systems/Controls.fs" />
+    <Compile Include="Systems/Traits.fs" />
+    <Compile Include="Systems/Line3.fs" />
+    <Compile Include="Systems/BoundingBox.fs" />
+    <Compile Include="Systems/Connectors.fs" />
+    <Compile Include="Systems/Animation.fs" />
+    <Compile Include="Systems/Dragging.fs" />
+    <Compile Include="Systems/UndoRedo.fs" />
+    <Compile Include="Systems/Selection.fs" />
+    <Compile Include="Systems/Movement.fs" />
+    <Compile Include="Systems/Layout.fs" />
+    <Compile Include="Systems/WorldActions.fs" />
+    <Compile Include="Systems/Runner.fs" />
   </ItemGroup>
 
   <ItemGroup>
