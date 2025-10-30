@@ -37,6 +37,14 @@ type Person =
       Shape: NodeShape
       DateOfBirth: DateOnly option
       DateOfDeath: DateOnly option }
+    /// Used for situations where we need a prototypical instance of Person just to infer its type.
+    static member Empty =
+        { Id = PersonId 0
+          Label = None
+          Wilp = None
+          Shape = Sphere
+          DateOfBirth = None
+          DateOfDeath = None }
 
 /// Represents a parent-child relationship. For every Person with recorded parents,
 /// there will be two ParentChildRelationships, one for each parent.
