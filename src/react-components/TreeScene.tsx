@@ -1,45 +1,19 @@
-// TreeScene.tsx
-import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
+import { ThreeEvent, useFrame } from "@react-three/fiber";
 import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import { MathUtils, Matrix4, Mesh, Quaternion, Vector3 } from "three";
-import { TreeNode } from "./generated/NodeState";
+import { TreeNode } from "../generated/NodeState";
 import {
-  Family,
-  Msg_$union,
   Msg_Animate,
   Msg_SelectNode,
-  Msg_DeselectAll,
-  Msg_ToggleSelection,
   Msg_TouchNode,
   Msg_StartDrag,
   Msg_DragTo,
   Msg_EndDrag,
-  Msg_Undo,
-  Msg_Redo,
-  ViewModel,
-  ViewState_ViewState,
-} from "./generated/ViewModel";
-import { defaultArg } from "./generated/fable_modules/fable-library-ts.4.25.0/Option.js";
-
-type WorldContextData = {
-  viewModel: ViewModel;
-  state: ViewState_ViewState;
-  dispatch: React.ActionDispatch<[msg: Msg_$union]>;
-};
-
-const WorldContext = React.createContext<WorldContextData | null>(null);
-
-function useWorld() {
-  const context = React.useContext(WorldContext);
-
-  if (!context) {
-    throw new Error("useWorld() must be used within a WorldContext provider");
-  }
-
-  return context;
-}
+} from "../generated/ViewModel";
+import { useViewModel } from "../context/viewModelContext";
+import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.25.0/Option.js";
 
 function TreeNodeMesh({
   node,
@@ -52,10 +26,10 @@ function TreeNodeMesh({
   onClick: (e: ThreeEvent<MouseEvent>) => void;
   onPointerDown: (e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const { dispatch } = useWorld();
+  const { dispatch } = useViewModel();
   const selectedNodeColour = "#8B4000"; // Deep, red copper
   const person = node.Person;
-  const position = node.Position;
+  const [x, y, z] = node.Position;
   const label = defaultArg(person.Label, undefined);
   const ref = React.useRef<Mesh>(null);
 
@@ -68,7 +42,6 @@ function TreeNodeMesh({
 
     if (node.IsAnimating) {
       const lambda = 6;
-      const [x, y, z] = node.Position;
       const [tx, ty, tz] = node.TargetPosition;
       const newX = MathUtils.damp(x, tx, lambda, delta);
       const newY = MathUtils.damp(y, ty, lambda, delta);
@@ -94,7 +67,7 @@ function TreeNodeMesh({
         />
       </mesh>
       {label && (
-        <Html position={[position[0], position[1] - 0.5, position[2]]} center>
+        <Html position={[x, y - 0.5, z]} center>
           <div
             style={{ color: "white", fontSize: "16px", textAlign: "center", pointerEvents: "none" }}
           >
@@ -228,7 +201,7 @@ function FamilyGroup({
 }
 
 function WilpGroup() {
-  const { viewModel, state, dispatch } = useWorld();
+  const { viewModel, state, dispatch } = useViewModel();
 
   const handlePointerDown = (id: number) => (e: ThreeEvent<PointerEvent>) => {
     dispatch(Msg_TouchNode(id));
@@ -310,71 +283,19 @@ function WilpGroup() {
   );
 }
 
-type TreeSceneProps = {
-  initialNodes: Iterable<TreeNode>;
-  initialFamilies: Iterable<Family>;
-};
-
-export default function TreeScene({ initialNodes, initialFamilies }: TreeSceneProps) {
-  const viewModel = new ViewModel();
-  const [state, dispatch] = React.useReducer(
-    viewModel.Update,
-    [initialNodes, initialFamilies],
-    viewModel.CreateInitialViewState
-  );
+export default function TreeScene() {
+  const { viewModel, state } = useViewModel();
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <div style={{ margin: "8px" }}>
-        <button onClick={() => dispatch(Msg_Undo())} disabled={!viewModel.CanUndo(state)}>
-          Undo
-        </button>
-        <button
-          onClick={() => dispatch(Msg_Redo())}
-          disabled={!viewModel.CanRedo(state)}
-          style={{ marginLeft: "8px" }}
-        >
-          Redo
-        </button>
-        <button
-          style={{ marginLeft: "8px" }}
-          onClick={() => {
-            const nextMode = viewModel.IsSingleSelectEnabled(state)
-              ? "multiSelect"
-              : "singleSelect";
-            dispatch(Msg_ToggleSelection(nextMode));
-          }}
-        >
-          {viewModel.IsSingleSelectEnabled(state) ? "Multi-select" : "Single-select"}
-        </button>
-      </div>
-      <div style={{ flex: 1, width: "100%", height: "100%" }}>
-        <Canvas
-          camera={{ position: [0, 0, 6], fov: 50 }}
-          shadows
-          onPointerMissed={() => dispatch(Msg_DeselectAll())}
-        >
-          {/* Ambient light for general illumination */}
-          <ambientLight intensity={0.7} />
-          {/* Directional light for stronger highlights and shadows */}
-          <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
-          {/* Additional point light for more dynamic lighting */}
-          <pointLight position={[1, -1, 2]} intensity={5} castShadow />
-          <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
-          <WorldContext value={{ viewModel, state, dispatch }}>
-            <WilpGroup />
-          </WorldContext>
-        </Canvas>
-      </div>
-    </div>
+    <group>
+      {/* Ambient light for general illumination */}
+      <ambientLight intensity={0.7} />
+      {/* Directional light for stronger highlights and shadows */}
+      <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+      {/* Additional point light for more dynamic lighting */}
+      <pointLight position={[1, -1, 2]} intensity={5} castShadow />
+      <OrbitControls enabled={viewModel.ShouldEnableOrbitControls(state)} />
+      <WilpGroup />
+    </group>
   );
 }
