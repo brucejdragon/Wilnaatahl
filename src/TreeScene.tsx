@@ -227,7 +227,7 @@ function FamilyGroup({
   );
 }
 
-export function WilpGroup() {
+function WilpGroup() {
   const { viewModel, state, dispatch } = useWorld();
 
   const handlePointerDown = (id: number) => (e: ThreeEvent<PointerEvent>) => {
