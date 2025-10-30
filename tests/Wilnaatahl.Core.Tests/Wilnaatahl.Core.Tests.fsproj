@@ -8,9 +8,7 @@
     <Compile Include="TestUtils.fs" />
     <Compile Include="TestData.fs" />
     <Compile Include="ModelTests.fs" />
-    <Compile Include="ViewModel/UndoableStateTests.fs" />
-    <Compile Include="ViewModel/NodeStateTests.fs" />
-    <Compile Include="ViewModel/ViewModelTests.fs" />
+    <Compile Include="Mocks\TestECS.fs" />
     <Compile Include="ViewModel/LayoutBoxTests.fs" />
     <Compile Include="ViewModel/SceneTests.fs" />
   </ItemGroup>

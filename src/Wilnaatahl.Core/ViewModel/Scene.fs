@@ -3,47 +3,21 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 open Wilnaatahl.ViewModel.LayoutBox
-#if FABLE_COMPILER
-open Fable.Core
-#endif
-
-/// Represents a unique identifier for a renderable node.
-/// There can be more than one renderable node per Person, so this is distinct from PersonId.
-#if FABLE_COMPILER
-[<Erase>]
-#endif
-type NodeId =
-    | NodeId of int
-
-    member this.AsInt =
-        let (NodeId nodeId) = this
-        nodeId
 
 /// Represents information needed to render a family member in the context of their Wilp.
 type IFamilyMemberInfo =
-    abstract Id: NodeId
     abstract Person: Person
     abstract RenderedInWilp: WilpName
 
-/// This is a handy data structure for rendering the connectors between members of an
+/// This is a handy data structure for creating the connectors between members of an
 /// immediate family.
-type RenderedFamily = { Parents: NodeId * NodeId; Children: NodeId list }
-
-/// Represents a node in the tree.
-type TreeNode = {
-    Id: NodeId
-    RenderedInWilp: WilpName
-    Position: float * float * float
-    TargetPosition: float * float * float
-    IsAnimating: bool
-    Person: Person
-}
-
-type TreeNodeWrapper(treeNode: TreeNode) =
-    interface IFamilyMemberInfo with
-        member _.Id = treeNode.Id
-        member _.Person = treeNode.Person
-        member _.RenderedInWilp = treeNode.RenderedInWilp
+type RenderedFamily<'T when 'T :> IFamilyMemberInfo> =
+    // NOTE: Because this indirectly tracks EntityIds, it must be ephemeral and not persist between frames.
+    // This type is only meant to be used while initializing connectors.
+    {
+        Parents: 'T * 'T
+        Children: 'T list
+    }
 
 module Scene =
     let private defaultXSpacing = 1.95<w>
@@ -120,6 +94,14 @@ module Scene =
         parentLeafBox
         |> attachAbove descendantsBox { UseUpperConnectX = true; UpperOffset = parentLeftEdge }
 
+    /// Produces a map from WilpName to the people that will render along with that Wilp. Since people can
+    /// play roles in different huwilp, the same Person may appear under different WilpName keys in the result.
+    let enumerateHuwilpToRender familyGraph =
+        // TODO: Extend to support multilple huwilp.
+        let wilp = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
+        let people = familyGraph |> allPeople
+        [ (wilp, people) ] |> Map.ofList
+
     /// Produces a LayoutBox and initial position for the given Wilp. The LayoutBox, along with its nested boxes,
     /// specifies relative offsets that determine the position of every node in the Wilp family tree. The caller
     /// can process the returned LayoutBox using the LayoutBox.visit function.
@@ -148,7 +130,7 @@ module Scene =
 
         rootOffset, rootBox
 
-    /// Organizes the given sequence of family member info into a data structure useful in rendering
+    /// Organizes the given sequence of family member info into a data structure useful in spawning
     /// connectors between immediate family members in the tree scene.
     let extractFamilies<'T when 'T :> IFamilyMemberInfo> familyGraph (nodes: 'T seq) =
         // TODO: Make this a recursive depth-first traversal so that leaf-most families are returned before root-most.
@@ -172,10 +154,9 @@ module Scene =
 
                 for wilp in huwilpToRender do
                     let getNode = personIdToNode wilp
-                    let getNodeId = getNode >> Option.map _.Id
 
-                    match getNode rel.Mother, getNode rel.Father, childrenOfBoth |> List.choose getNodeId with
-                    | Some mother, Some father, (_ :: _ as childrenIds) ->
-                        yield { Parents = mother.Id, father.Id; Children = childrenIds }
+                    match getNode rel.Mother, getNode rel.Father, childrenOfBoth |> List.choose getNode with
+                    | Some mother, Some father, (_ :: _ as children) ->
+                        yield { Parents = mother, father; Children = children }
                     | _ -> () // Nothing to render since we need both parents and at least one child.
         }
