@@ -3,7 +3,7 @@ import React from "react";
 import TreeScene from "./TreeScene";
 import { GraphViewFactory } from "./generated/ViewModel";
 
-function App() {
+export default function App() {
   const factory = new GraphViewFactory();
   const graph = factory.LoadGraph();
   const nodes = factory.LayoutGraph(graph, factory.FirstWilp(graph));
@@ -14,5 +14,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
