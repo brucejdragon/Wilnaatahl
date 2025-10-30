@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Wilnaatahl.Model\Wilnaatahl.Model.fsproj" />
+    <ProjectReference Include="..\..\src\Wilnaatahl.Core\Wilnaatahl.Core.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
