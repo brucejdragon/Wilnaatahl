@@ -18,6 +18,7 @@ type DragState =
     // Captures the state between pointer up and the final click, which should be ignored.
     | DragEnding
     | NotDragging
+
     member this.ShouldEnableOrbitControls =
         match this with
         | NotDragging -> true
@@ -30,6 +31,7 @@ type DragState =
 type SelectionMode =
     | SingleSelect
     | MultiSelect
+
     member this.IsSingleSelectEnabled =
         match this with
         | SingleSelect -> true
@@ -69,8 +71,15 @@ module ViewState =
           LastTouchedNodeId = None
           SelectionMode = SingleSelect }
 
-    let canRedo state = canRedo state.History
-    let canUndo state = canUndo state.History
+    let private areAnyNodesAnimating state =
+        state.History |> current |> all |> Seq.exists (fun n -> n.IsAnimating)
+
+    let canRedo state =
+        canRedo state.History && not (areAnyNodesAnimating state)
+
+    let canUndo state =
+        canUndo state.History && not (areAnyNodesAnimating state)
+
     let enumerateFamilies state = state.Families
 
     let enumerateChildren state family =
@@ -100,25 +109,35 @@ module ViewState =
         let commit nodeState = state.History |> setCurrent nodeState
 
         match msg with
-        | Animate (nodeId, x, y, z) ->
+        | Animate(nodeId, x, y, z) ->
             let newPosition = x, y, z
             let node = nodes |> findNode nodeId
             let delta = 0.01
+
             let isAnimationFinished =
                 let tx, ty, tz = node.TargetPosition
                 abs (x - tx) < delta && abs (y - ty) < delta && abs (z - tz) < delta
+
             let newNode =
                 { node with
-                    Position = if isAnimationFinished then node.TargetPosition else newPosition
+                    Position =
+                        if isAnimationFinished then
+                            node.TargetPosition
+                        else
+                            newPosition
                     IsAnimating = not isAnimationFinished }
+
             let updatedNodes = nodes |> replace nodeId newNode
-            { state with History = commit updatedNodes }
+
+            { state with
+                History = commit updatedNodes }
         | SelectNode nodeId ->
             if nodes |> isSelected nodeId then
                 match state.Drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with History = nodes |> deselect nodeId |> commit }
+                    { state with
+                        History = nodes |> deselect nodeId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
                     { state with Drag = NotDragging }
@@ -140,7 +159,7 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 Drag = NotDragging }
-        | StartDrag (px, py, pz) ->
+        | StartDrag(px, py, pz) ->
             match state.LastTouchedNodeId with
             | Some nodeId ->
                 // Calculate the offset between the click point and the co-ordinates
@@ -164,7 +183,7 @@ module ViewState =
                                 { Offset = offset
                                   LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
-        | DragTo (px, py, pz) ->
+        | DragTo(px, py, pz) ->
             match state.Drag with
             | Dragging { Offset = ox, oy, oz
                          LastTouchedNodeId = nodeId } ->
@@ -181,7 +200,9 @@ module ViewState =
                     { node with Position = newPos }
 
                 let updatedNodes = nodes |> mapSelected updateNodePosition
-                { state with History = commit updatedNodes }
+
+                { state with
+                    History = commit updatedNodes }
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
@@ -200,15 +221,25 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 SelectionMode = mode }
-        | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
+        | TouchNode nodeId ->
+            { state with
+                LastTouchedNodeId = Some nodeId }
         | Undo ->
             let undoneHistory = undo state.History
-            let newNodes = current state.History |> animateToNewNodePositions (current undoneHistory)
-            { state with History = undoneHistory |> setCurrent newNodes }
+
+            let newNodes =
+                current state.History |> animateToNewNodePositions (current undoneHistory)
+
+            { state with
+                History = undoneHistory |> setCurrent newNodes }
         | Redo ->
             let redoneHistory = redo state.History
-            let newNodes = current state.History |> animateToNewNodePositions (current redoneHistory)
-            { state with History = redoneHistory |> setCurrent newNodes }
+
+            let newNodes =
+                current state.History |> animateToNewNodePositions (current redoneHistory)
+
+            { state with
+                History = redoneHistory |> setCurrent newNodes }
 
 open ViewState
 
@@ -259,8 +290,7 @@ type GraphViewFactory() =
 
             // Each Person appears at most once in a rendered Wilp, so this mapping is guaranteed to be unique.
             let personIdToNodeId wilp (personId: PersonId) =
-                nodesByPersonInWilp
-                |> Map.tryFind (personId.AsInt, wilp)
+                nodesByPersonInWilp |> Map.tryFind (personId.AsInt, wilp)
 
             let huwilpToRender = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
 
@@ -272,16 +302,16 @@ type GraphViewFactory() =
 
                     for wilp in huwilpToRender do
                         let mapId = personIdToNodeId wilp
+
                         match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
-                        | Some motherId, Some fatherId, (_::_ as childrenIds) ->
-                            yield { Parents = motherId, fatherId; Children = childrenIds }
+                        | Some motherId, Some fatherId, (_ :: _ as childrenIds) ->
+                            yield
+                                { Parents = motherId, fatherId
+                                  Children = childrenIds }
                         | _ -> () // Nothing to render since we need both parents and at least one child.
             }
 
-        member _.FirstWilp familyGraph = 
-            familyGraph
-            |> huwilp
-            |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
+        member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
             [ { Id = NodeId 0

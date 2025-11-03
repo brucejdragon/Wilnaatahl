@@ -32,6 +32,12 @@ module NodeState =
             { Nodes: Map<int, TreeNode>
               SelectedNodes: Map<int, TreeNode> }
 
+    let all state = 
+        seq {
+            yield! state.SelectedNodes |> Map.values
+            yield! state.Nodes |> Map.values
+        }
+
     let createNodeState nodes =
         { Nodes =
             nodes
