@@ -26,8 +26,8 @@ let ``CanUndo and CanRedo reflect undo/redo state`` () =
     let state =
         initialState
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
         |> update EndDrag
 
     viewModel.CanUndo state =! true
@@ -38,9 +38,7 @@ let ``CanUndo and CanRedo reflect undo/redo state`` () =
 let ``CreateInitialViewState sets up nodes and families`` () =
     let state = initialState
 
-    let nodes =
-        viewModel.EnumerateUnselectedTreeNodes state
-        |> Seq.toList
+    let nodes = viewModel.EnumerateUnselectedTreeNodes state |> Seq.toList
 
     let fams = viewModel.EnumerateFamilies state |> Seq.toList
     nodes =! initialNodes
@@ -50,30 +48,22 @@ let ``CreateInitialViewState sets up nodes and families`` () =
 let ``EnumerateSelectedTreeNodes and EnumerateUnselectedTreeNodes reflect selection`` () =
     let state = initialState |> update (SelectNode(NodeId 1))
 
-    let selected =
-        viewModel.EnumerateSelectedTreeNodes state
-        |> Seq.toList
+    let selected = viewModel.EnumerateSelectedTreeNodes state |> Seq.toList
 
-    let unselected =
-        viewModel.EnumerateUnselectedTreeNodes state
-        |> Seq.toList
+    let unselected = viewModel.EnumerateUnselectedTreeNodes state |> Seq.toList
 
     selected =! [ node1 ]
     Set.ofList unselected =! Set.ofList [ node0; node2; node3; node4 ]
 
 [<Fact>]
 let ``EnumerateFamilies returns all families`` () =
-    let fams =
-        viewModel.EnumerateFamilies initialState
-        |> Seq.toList
+    let fams = viewModel.EnumerateFamilies initialState |> Seq.toList
 
     fams =! families
 
 [<Fact>]
 let ``EnumerateChildren returns correct children`` () =
-    let children =
-        viewModel.EnumerateChildren initialState family
-        |> Seq.toList
+    let children = viewModel.EnumerateChildren initialState family |> Seq.toList
 
     children =! [ node3; node4 ]
 
@@ -94,10 +84,7 @@ let ``IsSingleSelectEnabled reflects selection mode`` () =
 let ``ShouldEnableOrbitControls reflects drag state`` () =
     viewModel.ShouldEnableOrbitControls initialState =! true
 
-    let state =
-        initialState
-        |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
+    let state = initialState |> update (TouchNode(NodeId 1)) |> update StartDrag
 
     viewModel.ShouldEnableOrbitControls state =! false
 
@@ -121,9 +108,7 @@ let ``SelectNode selects and deselects nodes correctly`` () =
         |> update (SelectNode(NodeId 2))
 
     let selected =
-        viewModel.EnumerateSelectedTreeNodes state3
-        |> Seq.map _.Id
-        |> Set.ofSeq
+        viewModel.EnumerateSelectedTreeNodes state3 |> Seq.map _.Id |> Set.ofSeq
 
     selected =! Set.ofList [ NodeId 1; NodeId 2 ]
 
@@ -135,7 +120,7 @@ let ``DeselectAll clears all selections`` () =
         |> update (SelectNode(NodeId 1))
         |> update (SelectNode(NodeId 2))
         |> update DeselectAll
-    
+
     viewModel.EnumerateSelectedTreeNodes state |> Seq.length =! 0
 
 [<Fact>]
@@ -144,7 +129,8 @@ let ``StartDrag sets drag state and enables undo`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update StartDrag
+
     viewModel.ShouldEnableOrbitControls state =! false
     viewModel.CanUndo state =! true
 
@@ -154,17 +140,18 @@ let ``DragTo updates selected node positions`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
+
     let selected = viewModel.EnumerateSelectedTreeNodes state |> Seq.toList
 
     let position =
         selected
-            |> List.filter (fun n -> n.Id = NodeId 1)
-            |> List.map _.Position
-            |> List.tryHead
-    
-    position =! Some(2.0, 2.0, 0.0)
+        |> List.filter (fun n -> n.Id = NodeId 1)
+        |> List.map _.Position
+        |> List.tryHead
+
+    position =! Some(3.0, 3.0, 0.0)
 
 [<Fact>]
 let ``EndDrag sets DragEnding and clears redo`` () =
@@ -172,9 +159,10 @@ let ``EndDrag sets DragEnding and clears redo`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
         |> update EndDrag
+
     viewModel.CanRedo state =! false
     viewModel.ShouldEnableOrbitControls state =! false
 
@@ -184,6 +172,7 @@ let ``ToggleSelection changes selection mode and clears selection`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (ToggleSelection MultiSelect)
+
     viewModel.IsSingleSelectEnabled state =! false
     viewModel.EnumerateSelectedTreeNodes state |> Seq.length =! 0
 
@@ -193,20 +182,22 @@ let ``Undo animates to previous state`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
         |> update EndDrag
 
     let state2 = state1 |> update Undo
 
     // After undo, node should be set to animate to original position.
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
+
     let position =
         selected
         |> List.filter (fun n -> n.Id = NodeId 1)
         |> List.map (fun n -> n.Position, n.TargetPosition, n.IsAnimating)
         |> List.tryHead
-    position =! Some((2.0, 2.0, 0.0), (1.0, 1.0, 0.0), true)
+
+    position =! Some((3.0, 3.0, 0.0), (1.0, 1.0, 0.0), true)
 
 [<Fact>]
 let ``Redo animates to next state`` () =
@@ -214,8 +205,8 @@ let ``Redo animates to next state`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
         |> update EndDrag
         |> update Undo
         |> update (Animate(NodeId 1, 1.0, 1.0, 0.0)) // Undo isn't really finished until animation completes: TODO: This is awkward.
@@ -224,12 +215,14 @@ let ``Redo animates to next state`` () =
 
     // After redo, node should be set to animate to the updated position.
     let selected = viewModel.EnumerateSelectedTreeNodes state2 |> Seq.toList
+
     let position =
         selected
         |> List.filter (fun n -> n.Id = NodeId 1)
         |> List.map (fun n -> n.Position, n.TargetPosition, n.IsAnimating)
         |> List.tryHead
-    position =! Some((1.0, 1.0, 0.0), (2.0, 2.0, 0.0), true)
+
+    position =! Some((1.0, 1.0, 0.0), (3.0, 3.0, 0.0), true)
 
 [<Fact>]
 let ``SelectNode when DragEnding does not change selection, resets drag`` () =
@@ -238,12 +231,14 @@ let ``SelectNode when DragEnding does not change selection, resets drag`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
-        |> update (DragTo(2.0, 2.0, 0.0))
+        |> update StartDrag
+        |> update (DragBy(2.0, 2.0, 0.0))
         |> update EndDrag
         |> update (SelectNode(NodeId 1)) // triggers DragEnding sub-case
     // Drag should be reset to NotDragging, selection unchanged (in terms of ID, not co-ordinates)
-    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList |> List.map _.Person.Id =! [ node1.Person.Id ]
+    viewModel.EnumerateSelectedTreeNodes state |> Seq.toList |> List.map _.Person.Id
+    =! [ node1.Person.Id ]
+
     viewModel.ShouldEnableOrbitControls state =! true
 
 [<Fact>]
@@ -253,7 +248,7 @@ let ``SelectNode when Dragging does nothing`` () =
         initialState
         |> update (SelectNode(NodeId 1))
         |> update (TouchNode(NodeId 1))
-        |> update (StartDrag(1.0, 1.0, 0.0))
+        |> update StartDrag
         |> update (SelectNode(NodeId 1)) // triggers Dragging sub-case
     // Should be unchanged from before
     viewModel.EnumerateSelectedTreeNodes state |> Seq.toList =! [ node1 ]
@@ -262,14 +257,14 @@ let ``SelectNode when Dragging does nothing`` () =
 [<Fact>]
 let ``StartDrag without initial TouchNode does nothing`` () =
     // Setup state with no last touched node (no TouchNode sent).
-    let state = update (StartDrag(1.0, 1.0, 0.0)) initialState
+    let state = update StartDrag initialState
     // State should be unchanged
     state =! initialState
 
 [<Fact>]
 let ``DragTo when NotDragging does nothing`` () =
     // Setup state with NotDragging
-    let state = update (DragTo(2.0, 2.0, 0.0)) initialState
+    let state = update (DragBy(2.0, 2.0, 0.0)) initialState
     // State should be unchanged
     state =! initialState
 
@@ -313,5 +308,5 @@ let ``StartDrag has no effect when the touched node is animating`` () =
         |> update (Animate(NodeId 1, 2.0, 2.0, 0.0))
 
     // Attempt to start a drag; since node.IsAnimating = true this should do nothing
-    let after = stateAnimating |> update (StartDrag(1.0, 1.0, 0.0))
+    let after = stateAnimating |> update StartDrag
     after =! stateAnimating

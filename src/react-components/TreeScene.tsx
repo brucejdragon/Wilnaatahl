@@ -9,7 +9,7 @@ import {
   Msg_SelectNode,
   Msg_TouchNode,
   Msg_StartDrag,
-  Msg_DragTo,
+  Msg_DragBy,
   Msg_EndDrag,
 } from "../generated/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
@@ -257,7 +257,7 @@ function WilpGroup() {
   const handleDrag = (l: Matrix4) => {
     const local = new Vector3();
     l.decompose(local, new Quaternion(), new Vector3());
-    dispatch(Msg_DragTo(local.x, local.y, local.z));
+    dispatch(Msg_DragBy(local.x, local.y, local.z));
   };
 
   // We have two groups below to control the positioning of the wilp in the scene.
@@ -270,7 +270,7 @@ function WilpGroup() {
         <DragControls
           autoTransform={false}
           axisLock="z"
-          onDragStart={(origin) => dispatch(Msg_StartDrag(origin.x, origin.y, origin.z))}
+          onDragStart={() => dispatch(Msg_StartDrag())} // Ignore origin from DragControls since it always seems to be (0, 0, 0).
           onDrag={handleDrag}
           onDragEnd={() => dispatch(Msg_EndDrag())}
         >

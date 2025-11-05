@@ -10,8 +10,14 @@ open Fable.Core
 #endif
 
 type DragData =
-    { Offset: float * float * float
-      LastTouchedNodeId: NodeId }
+    {
+        /// The position of the node that started the drag;
+        /// Used to calculate new positions during the drag.
+        Origin: float * float * float
+
+        /// Last node to be touched before the drag operation started.
+        LastTouchedNodeId: NodeId
+    }
 
 type DragState =
     | Dragging of DragData
@@ -40,8 +46,8 @@ type SelectionMode =
 type Msg =
     | SelectNode of NodeId
     | DeselectAll
-    | StartDrag of float * float * float
-    | DragTo of float * float * float
+    | StartDrag
+    | DragBy of float * float * float
     | EndDrag
     | ToggleSelection of SelectionMode
     | TouchNode of NodeId // In this context, "touch" means "pointer down".
@@ -159,11 +165,9 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 Drag = NotDragging }
-        | StartDrag(px, py, pz) ->
+        | StartDrag ->
             match state.LastTouchedNodeId with
             | Some nodeId ->
-                // Calculate the offset between the click point and the co-ordinates
-                // of the node that was dragged.
                 let node = nodes |> findNode nodeId
 
                 // Dragging is not allowed on animating nodes since it does
@@ -171,28 +175,25 @@ module ViewState =
                 if node.IsAnimating then
                     state
                 else
-                    let nx, ny, nz = node.Position
-                    let offset = nx - px, ny - py, nz - pz
-
                     // Use this opportunity to save the current node positions before
                     // they start changing for undo/redo.
                     { state with
                         History = state.History |> saveCurrentForUndo
                         Drag =
                             Dragging
-                                { Offset = offset
+                                { Origin = node.Position
                                   LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
-        | DragTo(px, py, pz) ->
+        | DragBy(moveX, moveY, moveZ) ->
             match state.Drag with
-            | Dragging { Offset = ox, oy, oz
+            | Dragging { Origin = originX, originY, originZ
                          LastTouchedNodeId = nodeId } ->
 
-                // Find the original position of the dragged node
-                let origNode = nodes |> findNode nodeId
-                let origX, origY, origZ = origNode.Position
-                let newX, newY, newZ = px + ox, py + oy, pz + oz
-                let dx, dy, dz = newX - origX, newY - origY, newZ - origZ
+                // Find the previous position of the dragged node
+                let node = nodes |> findNode nodeId
+                let oldX, oldY, oldZ = node.Position
+                let newX, newY, newZ = originX + moveX, originY + moveY, originZ + moveZ
+                let dx, dy, dz = newX - oldX, newY - oldY, newZ - oldZ
 
                 let updateNodePosition node =
                     let nx, ny, nz = node.Position
