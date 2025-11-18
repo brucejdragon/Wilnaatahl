@@ -1,4 +1,9 @@
-import { Entity, World } from "koota";
+module Wilnaatahl.Systems.Selection
+
+open Wilnaatahl.ECS
+open Wilnaatahl.Systems.Controls
+
+(*import { Entity, World } from "koota";
 import * as Controls from "../generated/Systems/Controls";
 import { ClickEvent, PointerMissedEvent } from "./eventActions";
 import { PersonRef, Selected } from "./traits";
@@ -82,3 +87,4 @@ export function selectNodes({ world }: { world: World }) {
 
   handleNodeClick(world, multiSelect);
 }
+*)

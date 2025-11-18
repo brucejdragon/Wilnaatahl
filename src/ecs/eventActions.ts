@@ -1,16 +1,17 @@
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { ThreeEvent } from "@react-three/fiber";
 import { createActions, Entity, trait, World } from "koota";
-import { removeAll } from "./utils";
+import * as Events from "../generated/Systems/Events";
+import { toKootaTrait } from "./kootaWrapper";
 
-// The following traits are used to flag input events, some global, some on entities.
-// They are deleted at the end of every frame to avoid being processed multiple times.
-export const ClickEvent = trait();
-export const DragEndEvent = trait();
-export const DragEvent = trait({ x: 0, y: 0, z: 0 });
-export const DragStartEvent = trait();
-export const PointerDownEvent = trait();
-export const PointerMissedEvent = trait();
+// Redefine unwrapped events so we can use them here.
+// TODO: Once all relevant systems have been ported to F#, we can drop the "export" on all these.
+export const ClickEvent = toKootaTrait(Events.ClickEvent);
+export const DragEndEvent = toKootaTrait(Events.DragEndEvent);
+export const DragEvent = toKootaTrait(Events.DragEvent);
+export const DragStartEvent = toKootaTrait(Events.DragStartEvent);
+export const PointerDownEvent = toKootaTrait(Events.PointerDownEvent);
+export const PointerMissedEvent = toKootaTrait(Events.PointerMissedEvent);
 
 export const eventActions = createActions((world: World) => ({
   handleClick: (entity: Entity) => () => {
@@ -40,15 +41,3 @@ export const eventActions = createActions((world: World) => ({
     world.add(PointerMissedEvent);
   },
 }));
-
-export function cleanupEvents({ world }: { world: World }) {
-  // Remove event traits from all entities at the end of the frame.
-  removeAll(world, PointerDownEvent);
-  removeAll(world, ClickEvent);
-
-  // Global events are world traits, so we have to delete them one by one.
-  world.remove(PointerMissedEvent);
-  world.remove(DragStartEvent);
-  world.remove(DragEvent);
-  world.remove(DragEndEvent);
-}

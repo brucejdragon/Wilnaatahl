@@ -1,5 +1,11 @@
 import { Entity, trait, World } from "koota";
-import { ClickEvent, DragStartEvent, DragEvent, DragEndEvent, PointerDownEvent } from "./events";
+import {
+  ClickEvent,
+  DragStartEvent,
+  DragEvent,
+  DragEndEvent,
+  PointerDownEvent,
+} from "./eventActions";
 import { Dragging, PersonRef, Position, Selected } from "./traits";
 import { removeAll } from "./utils";
 

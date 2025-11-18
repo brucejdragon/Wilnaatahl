@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="ECS/Types.fs" />
+    <Compile Include="ECS/ECS.fs" />
+    <Compile Include="Systems/Utils.fs" />
+    <Compile Include="Systems/Events.fs" />
+    <Compile Include="Systems/Controls.fs" />
+    <Compile Include="Systems/Selection.fs" />
     <Compile Include="UndoableState.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="NodeState.fs" />

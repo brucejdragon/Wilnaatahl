@@ -1,17 +1,21 @@
 import { createActions, createWorld, World } from "koota";
 import { animate } from "./animation";
-import { defineControls } from "./controls";
+import * as Controls from "../generated/Systems/Controls";
 import { dragNodes } from "./dragging";
-import { cleanupEvents } from "./events";
+import { cleanupEvents } from "../generated/Systems/Events";
 import { paintTreeNodes, copyPositionsToMeshes } from "./rendering";
 import { selectNodes } from "./selection";
 import { PersonRef, Position, TargetPosition } from "./traits";
 import { Person } from "../generated/Model";
 import { handleUndoRedo } from "./undo-redo";
+import { fromKootaWorld, toKootaTrait } from "./kootaWrapper";
 
 export const world = createWorld();
 
-defineControls(world);
+Controls.defineControls(fromKootaWorld(world));
+
+// Redefine unwrapped controls for consumption in the React controls.
+const Button = toKootaTrait(Controls.Button);
 
 export function runSystems(input: { world: World; delta: number }) {
   animate(input);
@@ -20,7 +24,7 @@ export function runSystems(input: { world: World; delta: number }) {
   selectNodes(input);
   copyPositionsToMeshes(input);
   paintTreeNodes(input);
-  cleanupEvents(input);
+  cleanupEvents(fromKootaWorld(input.world));
 }
 
 export const worldActions = createActions((world: World) => ({
@@ -50,6 +54,6 @@ export const worldActions = createActions((world: World) => ({
   },
 }));
 
-export { Button } from "./controls";
-export { eventActions } from "./events";
+export { Button };
+export { eventActions } from "./eventActions";
 export { Dragging, MeshRef, PersonRef, Selected } from "./traits";
