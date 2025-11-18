@@ -1,8 +1,13 @@
 import { Entity, Not, relation, World } from "koota";
-import { Button, UndoButton, RedoButton } from "./controls";
+import * as Controls from "../generated/ECS/Controls";
 import { ClickEvent, DragEndEvent, DragStartEvent } from "./events";
 import { Position, Selected, TargetPosition } from "./traits";
 import { EntityStack, getStack } from "./utils";
+import { unwrapTrait } from "./kootaWrapper";
+
+const Button = unwrapTrait(Controls.Button);
+const UndoButton = unwrapTrait(Controls.UndoButton);
+const RedoButton = unwrapTrait(Controls.RedoButton);
 
 // Used to define an "undo stack" as a linked list of entities.
 const HasUndo = relation({ exclusive: true });

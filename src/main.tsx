@@ -7,7 +7,7 @@ import "./style.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <WorldProvider world={world}>
+    <WorldProvider world={world.world}>
       <App />
     </WorldProvider>
   </React.StrictMode>

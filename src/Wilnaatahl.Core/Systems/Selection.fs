@@ -1,3 +1,8 @@
+namespace Wilnaatahl.Systems
+
+open Wilnaatahl.ECS
+
+(*
 import { Entity, World } from "koota";
 import * as Controls from "../generated/ECS/Controls";
 import { ClickEvent, PointerMissedEvent } from "./events";
@@ -82,3 +87,4 @@ export function selectNodes({ world }: { world: World }) {
 
   handleNodeClick(world, multiSelect);
 }
+*)
