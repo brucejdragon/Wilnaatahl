@@ -13,16 +13,16 @@ export default function App() {
     return factory.LayoutGraph(graph, factory.FirstWilp(graph));
   }, []);
 
-  const { despawnAllTreeNodes, spawnTreeNode } = useActions(worldActions);
-  const { handlePointerMissed } = useActions(eventActions);
+  const { destroyAllTreeNodes, spawnTreeNode } = useActions(worldActions);
 
   useEffect(() => {
     for (const node of nodes) {
       spawnTreeNode(node.Person, node.TargetPosition);
     }
-    return despawnAllTreeNodes;
-  }, [nodes, spawnTreeNode, despawnAllTreeNodes]);
+    return destroyAllTreeNodes;
+  }, [nodes, destroyAllTreeNodes, spawnTreeNode]);
 
+  const { handlePointerMissed } = useActions(eventActions);
   return (
     <div
       className="w-full h-screen"

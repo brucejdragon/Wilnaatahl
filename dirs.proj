@@ -1,0 +1,17 @@
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Minimal target so the SDK loads; this project simply aggregates references
+       to the repository's .NET projects so `dotnet restore` may be run from
+       the repository root. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="src\Wilnaatahl.Core\Wilnaatahl.Core.fsproj" />
+    <ProjectReference Include="tests\Wilnaatahl.Core.Tests\Wilnaatahl.Core.Tests.fsproj" />
+  </ItemGroup>
+
+</Project>
