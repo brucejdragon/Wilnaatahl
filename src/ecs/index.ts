@@ -1,55 +1,37 @@
 import { createActions, createWorld, World } from "koota";
-import { animate } from "./animation";
-import { defineControls } from "./controls";
-import { dragNodes } from "./dragging";
-import { cleanupEvents } from "./events";
-import { paintTreeNodes, copyPositionsToMeshes } from "./rendering";
-import { selectNodes } from "./selection";
-import { PersonRef, Position, TargetPosition } from "./traits";
-import { Person } from "../generated/Model";
-import { handleUndoRedo } from "./undo-redo";
+import { Button as WrappedButton, spawnControls } from "../generated/Systems/Controls";
+import { destroyAllConnectors, spawnAllConnectors } from "../generated/Systems/Connectors";
+import { runSystems as runFableSystems } from "../generated/Systems/Runner";
+import {
+  destroyAllTreeNodes,
+  spawnTreeNode,
+  TreeNodeData,
+} from "../generated/Systems/WorldActions";
+import { FamilyGraph_FamilyGraph as FamilyGraph, Person } from "../generated/Model";
+import { fromKootaWorld, toKootaValueTrait } from "./kootaWrapper";
 
 export const world = createWorld();
 
-defineControls(world);
+spawnControls(fromKootaWorld(world));
 
 export function runSystems(input: { world: World; delta: number }) {
-  animate(input);
-  dragNodes(input);
-  handleUndoRedo(input);
-  selectNodes(input);
-  copyPositionsToMeshes(input);
-  paintTreeNodes(input);
-  cleanupEvents(input);
+  runFableSystems(fromKootaWorld(input.world), input.delta);
 }
 
-export const worldActions = createActions((world: World) => ({
-  despawnAllTreeNodes: () => {
-    world
-      .query(PersonRef)
-      .select()
-      .updateEach(([], entity) => {
-        entity.destroy();
-      });
-  },
-  spawnTreeNode: (person: Person, position: [number, number, number]) => {
-    const [nx, ny, nz] = position;
-    world.spawn(
-      PersonRef(person),
-      Position({
-        x: 0,
-        y: 0,
-        z: 0,
-      }),
-      TargetPosition({
-        x: nx,
-        y: ny,
-        z: nz,
-      })
-    );
-  },
-}));
+export const worldActions = createActions((world: World) => {
+  const wrappedWorld = fromKootaWorld(world);
+  return {
+    destroyAllConnectors: () => destroyAllConnectors(wrappedWorld),
+    destroyAllTreeNodes: () => destroyAllTreeNodes(wrappedWorld),
+    spawnAllConnectors: (familyGraph: FamilyGraph) => spawnAllConnectors(wrappedWorld, familyGraph),
+    spawnTreeNode: (person: Person, position: [number, number, number], renderedInWilp: string) =>
+      spawnTreeNode(wrappedWorld, new TreeNodeData(person, position, renderedInWilp)),
+  };
+});
 
-export { Button } from "./controls";
+// Redefine unwrapped traits for consumption on the TypeScript side.
+const Button = toKootaValueTrait(WrappedButton);
+
+export { Button };
 export { eventActions } from "./events";
 export { Dragging, MeshRef, PersonRef, Selected } from "./traits";

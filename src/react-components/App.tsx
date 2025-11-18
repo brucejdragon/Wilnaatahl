@@ -7,22 +7,36 @@ import TreeScene from "./TreeScene";
 import { eventActions, worldActions } from "../ecs";
 
 export default function App() {
-  const nodes = useMemo(() => {
+  const [familyGraph, nodes] = useMemo(() => {
     const factory = new GraphViewFactory();
     const graph = factory.LoadGraph();
-    return factory.LayoutGraph(graph, factory.FirstWilp(graph));
+    return [graph, factory.LayoutGraph(graph, factory.FirstWilp(graph))];
   }, []);
 
-  const { despawnAllTreeNodes, spawnTreeNode } = useActions(worldActions);
-  const { handlePointerMissed } = useActions(eventActions);
+  const { destroyAllConnectors, destroyAllTreeNodes, spawnAllConnectors, spawnTreeNode } =
+    useActions(worldActions);
 
   useEffect(() => {
+    // Spawn the tree nodes first so the connectors can connect to them.
     for (const node of nodes) {
-      spawnTreeNode(node.Person, node.TargetPosition);
+      spawnTreeNode(node.Person, node.TargetPosition, node.RenderedInWilp);
     }
-    return despawnAllTreeNodes;
-  }, [nodes, spawnTreeNode, despawnAllTreeNodes]);
+    spawnAllConnectors(familyGraph);
+    return () => {
+      // Destroy the connectors before the tree nodes (it shouldn't matter, but just for symmetry).
+      destroyAllConnectors();
+      destroyAllTreeNodes();
+    };
+  }, [
+    familyGraph,
+    nodes,
+    destroyAllConnectors,
+    destroyAllTreeNodes,
+    spawnAllConnectors,
+    spawnTreeNode,
+  ]);
 
+  const { handlePointerMissed } = useActions(eventActions);
   return (
     <div
       className="w-full h-screen"

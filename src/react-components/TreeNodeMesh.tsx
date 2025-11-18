@@ -3,7 +3,7 @@ import { Mesh } from "three";
 import { Html } from "@react-three/drei";
 import { Entity } from "koota";
 import { useActions, useTrait } from "koota/react";
-import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.25.0/Option.js";
+import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
 import { eventActions, MeshRef, PersonRef } from "../ecs";
 
 export function TreeNodeMesh({ entity }: { entity: Entity }) {

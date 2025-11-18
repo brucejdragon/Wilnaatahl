@@ -11,6 +11,7 @@ open Fable.Core
 #endif
 type PersonId =
     | PersonId of int
+
     member this.AsInt =
         let (PersonId personId) = this
         personId
@@ -19,7 +20,12 @@ type PersonId =
 #if FABLE_COMPILER
 [<Erase>]
 #endif
-type Wilp = Wilp of string
+type Wilp =
+    | Wilp of string
+
+    member this.AsString =
+        let (Wilp wilp) = this
+        wilp
 
 /// Stand-in for Gender until we decide how best to handle it.
 #if FABLE_COMPILER
@@ -37,6 +43,7 @@ type Person =
       Shape: NodeShape
       DateOfBirth: DateOnly option
       DateOfDeath: DateOnly option }
+
     /// Used for situations where we need a prototypical instance of Person just to infer its type.
     static member Empty =
         { Id = PersonId 0
@@ -64,37 +71,26 @@ module FamilyGraph =
 
     let createFamilyGraph (peopleAndParents: seq<Person * CoParentRelationship option>) =
         let peopleMap =
-            peopleAndParents
-            |> Seq.map (fun (p, _) -> p.Id.AsInt, p)
-            |> Map.ofSeq
+            peopleAndParents |> Seq.map (fun (p, _) -> p.Id.AsInt, p) |> Map.ofSeq
 
         let coParents =
-            peopleAndParents
-            |> Seq.choose (fun (_, parents) -> parents)
-            |> Set.ofSeq
+            peopleAndParents |> Seq.choose (fun (_, parents) -> parents) |> Set.ofSeq
 
         let parentChildMap =
             seq {
                 for person, maybeParents in peopleAndParents do
                     match maybeParents with
                     | Some parents ->
-                        yield
-                            { Parent = parents.Mother
-                              Child = person.Id }
+                        yield { Parent = parents.Mother; Child = person.Id }
 
-                        yield
-                            { Parent = parents.Father
-                              Child = person.Id }
+                        yield { Parent = parents.Father; Child = person.Id }
                     | None -> () // Person has no recorded parents so they are a "root" in the family multi-graph.
             }
             |> Seq.groupBy (fun rel -> rel.Parent.AsInt)
             |> Seq.map (fun (parent, children) -> parent, children |> List.ofSeq)
             |> Map.ofSeq
 
-        let huwilp =
-            peopleAndParents
-            |> Seq.choose (fun (p, _) -> p.Wilp)
-            |> Set.ofSeq
+        let huwilp = peopleAndParents |> Seq.choose (fun (p, _) -> p.Wilp) |> Set.ofSeq
 
         { People = peopleMap
           ParentChildRelationshipsByParent = parentChildMap
@@ -108,9 +104,7 @@ module FamilyGraph =
     let findPerson (PersonId personId) graph = graph.People |> Map.find personId
 
     let findChildren (PersonId personId) graph =
-        match graph.ParentChildRelationshipsByParent
-              |> Map.tryFind personId
-            with
+        match graph.ParentChildRelationshipsByParent |> Map.tryFind personId with
         | Some rels -> rels |> List.map (fun r -> r.Child) |> Set.ofList
         | None -> Set.empty
 
@@ -136,24 +130,18 @@ module Initial =
             Shape = Sphere
             DateOfBirth = None
             DateOfDeath = None },
-          Some
-              { Mother = PersonId 0
-                Father = PersonId 1 }
+          Some { Mother = PersonId 0; Father = PersonId 1 }
           { Id = PersonId 3
             Label = Some "GGG Granduncle H"
             Wilp = Some(Wilp "H")
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
-          Some
-              { Mother = PersonId 0
-                Father = PersonId 1 }
+          Some { Mother = PersonId 0; Father = PersonId 1 }
           { Id = PersonId 4
             Label = Some "GGG Granduncle N"
             Wilp = Some(Wilp "H")
             Shape = Cube
             DateOfBirth = None
             DateOfDeath = None },
-          Some
-              { Mother = PersonId 0
-                Father = PersonId 1 } ]
+          Some { Mother = PersonId 0; Father = PersonId 1 } ]
