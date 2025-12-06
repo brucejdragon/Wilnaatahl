@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Mocks\TestECS.fs" />
     <Compile Include="UndoableStateTests.fs" />
     <Compile Include="ModelTests.fs" />
     <Compile Include="NodeStateTests.fs" />

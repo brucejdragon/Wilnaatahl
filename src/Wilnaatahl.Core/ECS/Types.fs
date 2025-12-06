@@ -79,7 +79,7 @@ type EntityId = EntityId of int
 /// Represent operations on entities in the World. For all entity operations, if an invalid entity ID
 /// is provided, the operation will throw an exception.
 type IEntityOperations =
-    /// Adds the given trait to the given entity.
+    /// Adds the given trait to the given entity. If it already exists, this has no effect.
     abstract Add: someTrait: ITrait -> entity: EntityId -> unit
 
     /// Destroys the given entity and all its trait instances (if any).
@@ -119,12 +119,12 @@ and IRelation<'TTrait when 'TTrait :> ITrait> =
     /// True if this relation is defined in terms of an ITagTrait type, false otherwise.
     abstract IsTag: bool
 
-    /// Returns the trait that represents the relation with the given entity as subject. The returned
+    /// Returns the trait that represents the relation with the given entity as target. The returned
     /// trait can be used to set a value for the relation if it's a value trait, to add the relation
-    /// with the given subject to a target entity, or anything else a trait can be used for.
+    /// with the given target to a subject entity, or anything else a trait can be used for.
     abstract On: entity: EntityId -> 'TTrait
 
-    /// Used in queries to request all entities that are a subject of this relation.
+    /// Used in queries to request all entities that are a subject of this relation across all targets.
     abstract Wildcard: unit -> 'TTrait
 
 /// Represents the result of a query.

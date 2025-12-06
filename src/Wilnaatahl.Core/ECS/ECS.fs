@@ -142,11 +142,16 @@ module Extensions =
     open Entity
 
     type IWorld with
+        /// Adds the given trait to the world and sets its value in a single operation.
         member this.AddWith valueTrait value =
             this.Add valueTrait
             this.Set valueTrait value
 
-        member this.QueryFirstTrait(someTrait: IValueTrait<'T>, [<ParamArray>] where: QueryOperator[]) =
+        /// Queries for the first entity matching the given criteria that has the given value trait
+        /// and returns the entity along with the trait value.
+        member this.QueryFirstTrait
+            (someTrait: IValueTrait<'T>, [<ParamArray>] where: QueryOperator[])
+            : (EntityId * 'T) option =
             match this.QueryFirst [| With someTrait; yield! where |] with
             | Some entity ->
                 match entity |> get someTrait with
@@ -157,6 +162,8 @@ module Extensions =
                     failwith $"Required trait not found on entity {entity}."
             | None -> None // Legit case where no entities meet the criteria.
 
+        /// Queries for the first entity matching the given criteria that has the given relation (i.e. acts as the
+        /// subject of the relation) and returns the subject entit, target entity, and the trait value.
         member this.QueryFirstTarget<'T, 'TTrait when 'TTrait :> IValueTrait<'T>>
             (relation: IRelation<'TTrait>, [<ParamArray>] where: QueryOperator[])
             =
@@ -176,6 +183,7 @@ module Extensions =
                     failwith $"Target not found for relation on entity {entity}."
             | None -> None // Legit case where no entities have the relation.
 
+        /// Removes all instances of the given trait from all entities in the world.
         member this.RemoveAll someTrait =
             for entity in this.Query(With someTrait) do
                 entity |> remove someTrait
