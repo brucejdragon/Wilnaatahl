@@ -10,8 +10,7 @@ export default function App() {
   const [familyGraph, nodes, firstWilp] = useMemo(() => {
     const factory = new GraphViewFactory();
     const graph = factory.LoadGraph();
-    const firstWilp = factory.FirstWilp(graph);
-    return [graph, factory.LayoutGraph(graph, firstWilp), firstWilp];
+    return [graph, factory.LayoutGraph(graph), factory.FirstWilp(graph)];
   }, []);
 
   const {
@@ -38,6 +37,7 @@ export default function App() {
     };
   }, [
     familyGraph,
+    firstWilp,
     nodes,
     destroyAllConnectors,
     destroyAllTreeNodes,
