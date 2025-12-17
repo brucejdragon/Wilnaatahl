@@ -298,36 +298,19 @@ type GraphViewFactory() =
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
-            [ { Id = NodeId 0
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = -0.9, 0.0, 0.0
-                IsAnimating = true
-                Person = familyGraph |> findPerson (PersonId 0) }
-              { Id = NodeId 1
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = 1.0, 0.0, 0.0
-                IsAnimating = true
-                Person = familyGraph |> findPerson (PersonId 1) }
-              { Id = NodeId 2
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = -1.9, -2.0, 0.0
-                IsAnimating = true
-                Person = familyGraph |> findPerson (PersonId 2) }
-              { Id = NodeId 3
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = 0.05, -2.0, 0.0
-                IsAnimating = true
-                Person = familyGraph |> findPerson (PersonId 3) }
-              { Id = NodeId 4
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = 2.0, -2.0, 0.0
-                IsAnimating = true
-                Person = familyGraph |> findPerson (PersonId 4) } ]
+            let place personAndNodeId pos =
+                { Id = NodeId personAndNodeId
+                  RenderedInWilp = focusedWilp
+                  Position = 0.0, 0.0, 0.0
+                  TargetPosition = pos
+                  IsAnimating = true
+                  Person = familyGraph |> findPerson (PersonId personAndNodeId) }
+
+            [ place 0 (-0.9, 0.0, 0.0)
+              place 1 (1.0, 0.0, 0.0)
+              place 2 (-1.9, -2.0, 0.0)
+              place 3 (0.05, -2.0, 0.0)
+              place 4 (2.0, -2.0, 0.0) ]
             |> Seq.ofList
 
         member _.LoadGraph() = createFamilyGraph peopleAndParents
