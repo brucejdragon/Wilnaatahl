@@ -298,19 +298,19 @@ type GraphViewFactory() =
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
-            let place personAndNodeId pos =
+            let place personAndNodeId (x, y) =
                 { Id = NodeId personAndNodeId
                   RenderedInWilp = focusedWilp
                   Position = 0.0, 0.0, 0.0
-                  TargetPosition = pos
+                  TargetPosition = x, y, 0.0
                   IsAnimating = true
                   Person = familyGraph |> findPerson (PersonId personAndNodeId) }
 
-            [ place 0 (-0.9, 0.0, 0.0)
-              place 1 (1.0, 0.0, 0.0)
-              place 2 (-1.9, -2.0, 0.0)
-              place 3 (0.05, -2.0, 0.0)
-              place 4 (2.0, -2.0, 0.0) ]
+            [ place 0 (-0.9, 0.0)
+              place 1 (1.0, 0.0)
+              place 2 (-1.9, -2.0)
+              place 3 (0.05, -2.0)
+              place 4 (2.0, -2.0) ]
             |> Seq.ofList
 
         member _.LoadGraph() = createFamilyGraph peopleAndParents
