@@ -12,6 +12,7 @@ open Fable.Core
 #endif
 type NodeId =
     | NodeId of int
+
     member this.AsInt =
         let (NodeId nodeId) = this
         nodeId
@@ -19,7 +20,7 @@ type NodeId =
 /// Represents a node in the tree.
 type TreeNode =
     { Id: NodeId
-      RenderedInWilp: Wilp
+      RenderedInWilp: WilpName
       Position: float * float * float
       TargetPosition: float * float * float
       IsAnimating: bool
@@ -32,17 +33,14 @@ module NodeState =
             { Nodes: Map<int, TreeNode>
               SelectedNodes: Map<int, TreeNode> }
 
-    let all state = 
+    let all state =
         seq {
             yield! state.SelectedNodes |> Map.values
             yield! state.Nodes |> Map.values
         }
 
     let createNodeState nodes =
-        { Nodes =
-            nodes
-            |> Seq.map (fun node -> node.Id.AsInt, node)
-            |> Map.ofSeq
+        { Nodes = nodes |> Seq.map (fun node -> node.Id.AsInt, node) |> Map.ofSeq
           SelectedNodes = Map.empty }
 
     let deselect (NodeId nodeId) state =
@@ -56,13 +54,9 @@ module NodeState =
     let deselectAll state =
         let add ns node = ns |> Map.add node.Id.AsInt node
 
-        let newNodes =
-            state.SelectedNodes.Values
-            |> Seq.fold add state.Nodes
+        let newNodes = state.SelectedNodes.Values |> Seq.fold add state.Nodes
 
-        { state with
-            SelectedNodes = Map.empty
-            Nodes = newNodes }
+        { state with SelectedNodes = Map.empty; Nodes = newNodes }
 
     let findNode (NodeId nodeId) state =
         // Look in selectedNodes first, then nodes. This is on the theory that
@@ -88,7 +82,8 @@ module NodeState =
 
     let replace (NodeId nodeIdInt as nodeId) newNode state =
         if isSelected nodeId state then
-            { state with SelectedNodes = state.SelectedNodes |> Map.add nodeIdInt newNode }
+            { state with
+                SelectedNodes = state.SelectedNodes |> Map.add nodeIdInt newNode }
         else
             { state with Nodes = state.Nodes |> Map.add nodeIdInt newNode }
 
@@ -110,8 +105,8 @@ module NodeState =
         state
         |> mapAll (fun node ->
             let newNode = newNodeState |> findNode node.Id
+
             if node.Position <> newNode.Position then
-                { node with
-                    TargetPosition = newNode.Position
-                    IsAnimating = true }
-            else node)
+                { node with TargetPosition = newNode.Position; IsAnimating = true }
+            else
+                node)

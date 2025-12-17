@@ -13,7 +13,7 @@ import {
   Msg_EndDrag,
 } from "../generated/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
-import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.25.0/Option.js";
+import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
 
 function TreeNodeMesh({
   node,

@@ -15,15 +15,13 @@ let private person id name shape wilp =
       DateOfDeath = None }
 
 // Test data is public because they are shared by other tests.
-let p0 = person 0 "Mother" Sphere (Some(Wilp "H"))
+let p0 = person 0 "Mother" Sphere (Some(WilpName "H"))
 let p1 = person 1 "Father" Cube None
-let p2 = person 2 "Child1" Sphere (Some(Wilp "H"))
-let p3 = person 3 "Child2" Cube (Some(Wilp "L"))
-let p4 = person 4 "Child3" Cube (Some(Wilp "H"))
+let p2 = person 2 "Child1" Sphere (Some(WilpName "H"))
+let p3 = person 3 "Child2" Cube (Some(WilpName "L"))
+let p4 = person 4 "Child3" Cube (Some(WilpName "H"))
 
-let coParents =
-    { Mother = PersonId 0
-      Father = PersonId 1 }
+let coParents = { Mother = PersonId 0; Father = PersonId 1 }
 
 let peopleAndParents =
     [ p0, None
@@ -38,23 +36,17 @@ let ``findPerson returns correct person for all ids`` () =
     let expectedPeople = [| p0; p1; p2; p3; p4 |]
 
     [ 0..4 ]
-    |> List.iter (fun id ->
-        findPerson (PersonId id) graph
-        =! expectedPeople[id])
+    |> List.iter (fun id -> findPerson (PersonId id) graph =! expectedPeople[id])
 
 [<Fact>]
 let ``findChildren returns correct children set for each parent`` () =
     let graph = createFamilyGraph peopleAndParents
 
     findChildren (PersonId 0) graph
-    =! Set.ofList [ PersonId 2
-                    PersonId 3
-                    PersonId 4 ]
+    =! Set.ofList [ PersonId 2; PersonId 3; PersonId 4 ]
 
     findChildren (PersonId 1) graph
-    =! Set.ofList [ PersonId 2
-                    PersonId 3
-                    PersonId 4 ]
+    =! Set.ofList [ PersonId 2; PersonId 3; PersonId 4 ]
 
     findChildren (PersonId 2) graph =! Set.empty
     findChildren (PersonId 3) graph =! Set.empty
@@ -64,8 +56,7 @@ let ``findChildren returns correct children set for each parent`` () =
 let ``createFamilyGraph handles empty input`` () =
     let graph = createFamilyGraph []
     // All public API should return empty/throw as appropriate
-    <@ findPerson (PersonId 0) graph |> ignore @>
-    |> raises<KeyNotFoundException>
+    <@ findPerson (PersonId 0) graph |> ignore @> |> raises<KeyNotFoundException>
 
     findChildren (PersonId 0) graph =! Set.empty
     coparents graph =! Set.empty
@@ -80,4 +71,4 @@ let ``coparents returns all co-parent relationships`` () =
 let ``huwilp returns all unique huwilp`` () =
     let graph = createFamilyGraph peopleAndParents
     let huwilpSet = huwilp graph
-    huwilpSet =! Set.ofList [ Wilp "H"; Wilp "L" ]
+    huwilpSet =! Set.ofList [ WilpName "H"; WilpName "L" ]

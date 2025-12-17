@@ -57,9 +57,7 @@ type Msg =
 
 /// This is a handy data structure for rendering the connectors between members of an
 /// immediate family.
-type Family =
-    { Parents: NodeId * NodeId
-      Children: NodeId list }
+type Family = { Parents: NodeId * NodeId; Children: NodeId list }
 
 module ViewState =
     type ViewState =
@@ -135,15 +133,13 @@ module ViewState =
 
             let updatedNodes = nodes |> replace nodeId newNode
 
-            { state with
-                History = commit updatedNodes }
+            { state with History = commit updatedNodes }
         | SelectNode nodeId ->
             if nodes |> isSelected nodeId then
                 match state.Drag with
                 | NotDragging ->
                     // De-select currently selected node.
-                    { state with
-                        History = nodes |> deselect nodeId |> commit }
+                    { state with History = nodes |> deselect nodeId |> commit }
                 | DragEnding ->
                     // Ignore the click that ended the drag, as it was not a selection change.
                     { state with Drag = NotDragging }
@@ -179,15 +175,11 @@ module ViewState =
                     // they start changing for undo/redo.
                     { state with
                         History = state.History |> saveCurrentForUndo
-                        Drag =
-                            Dragging
-                                { Origin = node.Position
-                                  LastTouchedNodeId = nodeId } }
+                        Drag = Dragging { Origin = node.Position; LastTouchedNodeId = nodeId } }
             | None -> state // Shouldn't happen; Do nothing.
         | DragBy(moveX, moveY, moveZ) ->
             match state.Drag with
-            | Dragging { Origin = originX, originY, originZ
-                         LastTouchedNodeId = nodeId } ->
+            | Dragging { Origin = originX, originY, originZ; LastTouchedNodeId = nodeId } ->
 
                 // Find the previous position of the dragged node
                 let node = nodes |> findNode nodeId
@@ -202,8 +194,7 @@ module ViewState =
 
                 let updatedNodes = nodes |> mapSelected updateNodePosition
 
-                { state with
-                    History = commit updatedNodes }
+                { state with History = commit updatedNodes }
             | DragEnding
             | NotDragging -> state
         | EndDrag ->
@@ -211,9 +202,7 @@ module ViewState =
             | Dragging _ ->
                 // Drag is ending; Flush the redo history to avoid massive time-travel
                 // confusion for the user.
-                { state with
-                    History = clearRedo state.History
-                    Drag = DragEnding }
+                { state with History = clearRedo state.History; Drag = DragEnding }
             | DragEnding
             | NotDragging -> state // This can happen on de-selection clicks, so ignore it.
         | ToggleSelection mode ->
@@ -222,25 +211,21 @@ module ViewState =
             { state with
                 History = nodes |> deselectAll |> commit
                 SelectionMode = mode }
-        | TouchNode nodeId ->
-            { state with
-                LastTouchedNodeId = Some nodeId }
+        | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
         | Undo ->
             let undoneHistory = undo state.History
 
             let newNodes =
                 current state.History |> animateToNewNodePositions (current undoneHistory)
 
-            { state with
-                History = undoneHistory |> setCurrent newNodes }
+            { state with History = undoneHistory |> setCurrent newNodes }
         | Redo ->
             let redoneHistory = redo state.History
 
             let newNodes =
                 current state.History |> animateToNewNodePositions (current redoneHistory)
 
-            { state with
-                History = redoneHistory |> setCurrent newNodes }
+            { state with History = redoneHistory |> setCurrent newNodes }
 
 open ViewState
 
@@ -277,8 +262,8 @@ type ViewModel() =
 // Functionality to initialize the core ViewModel data structures in an interface for easier consumption from TypeScript.
 type IGraphViewFactory =
     abstract ExtractFamilies: FamilyGraph -> seq<TreeNode> -> seq<Family>
-    abstract FirstWilp: FamilyGraph -> Wilp
-    abstract LayoutGraph: FamilyGraph -> Wilp -> seq<TreeNode>
+    abstract FirstWilp: FamilyGraph -> WilpName
+    abstract LayoutGraph: FamilyGraph -> WilpName -> seq<TreeNode>
     abstract LoadGraph: unit -> FamilyGraph
 
 type GraphViewFactory() =
@@ -306,9 +291,7 @@ type GraphViewFactory() =
 
                         match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
                         | Some motherId, Some fatherId, (_ :: _ as childrenIds) ->
-                            yield
-                                { Parents = motherId, fatherId
-                                  Children = childrenIds }
+                            yield { Parents = motherId, fatherId; Children = childrenIds }
                         | _ -> () // Nothing to render since we need both parents and at least one child.
             }
 

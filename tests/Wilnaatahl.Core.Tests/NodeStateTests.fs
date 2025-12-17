@@ -8,13 +8,10 @@ open Wilnaatahl.ViewModel.NodeState
 open Wilnaatahl.Tests.ModelTests
 
 let private treeNode id =
-    let person =
-        peopleAndParents
-        |> List.find (fun (p, _) -> p.Id = PersonId id)
-        |> fst
+    let person = peopleAndParents |> List.find (fun (p, _) -> p.Id = PersonId id) |> fst
 
     { Id = NodeId id
-      RenderedInWilp = Wilp "H"
+      RenderedInWilp = WilpName "H"
       Position = float id, float id, 0.0
       TargetPosition = 0.0, 0.0, 0.0
       IsAnimating = false
@@ -33,8 +30,7 @@ let initialNodes = [ node0; node1; node2; node3; node4 ]
 let ``createNodeState initializes nodes and empty selection`` () =
     let state = createNodeState initialNodes
 
-    unselected state |> Seq.length
-    =! List.length initialNodes
+    unselected state |> Seq.length =! List.length initialNodes
 
     selected state |> Seq.length =! 0
 
@@ -45,8 +41,7 @@ let ``select moves node from unselected to selected`` () =
     isSelected (NodeId 1) state' =! true
     selected state' |> Seq.length =! 1
 
-    unselected state' |> Seq.length
-    =! List.length initialNodes - 1
+    unselected state' |> Seq.length =! List.length initialNodes - 1
 
 [<Fact>]
 let ``select is idempotent for already selected node`` () =
@@ -63,8 +58,7 @@ let ``deselect moves node from selected to unselected`` () =
     isSelected (NodeId 1) state' =! false
     selected state' |> Seq.length =! 0
 
-    unselected state' |> Seq.length
-    =! List.length initialNodes
+    unselected state' |> Seq.length =! List.length initialNodes
 
 [<Fact>]
 let ``deselect is idempotent for unselected node`` () =
@@ -74,16 +68,12 @@ let ``deselect is idempotent for unselected node`` () =
 
 [<Fact>]
 let ``deselectAll moves all selected nodes to unselected`` () =
-    let state =
-        createNodeState initialNodes
-        |> select (NodeId 1)
-        |> select (NodeId 2)
+    let state = createNodeState initialNodes |> select (NodeId 1) |> select (NodeId 2)
 
     let state' = deselectAll state
     selected state' |> Seq.length =! 0
 
-    unselected state' |> Seq.length
-    =! List.length initialNodes
+    unselected state' |> Seq.length =! List.length initialNodes
 
 [<Fact>]
 let ``findNode finds selected and unselected nodes`` () =
@@ -103,37 +93,20 @@ let ``isSelected returns correct status`` () =
 
 [<Fact>]
 let ``mapSelected applies function to all selected nodes`` () =
-    let state =
-        createNodeState initialNodes
-        |> select (NodeId 1)
-        |> select (NodeId 2)
+    let state = createNodeState initialNodes |> select (NodeId 1) |> select (NodeId 2)
 
     let state' = mapSelected (fun n -> { n with Position = 0.0, 0.0, 0.0 }) state
 
-    selected state'
-    |> Seq.forall (fun n -> n.Position = (0.0, 0.0, 0.0))
-    =! true
+    selected state' |> Seq.forall (fun n -> n.Position = (0.0, 0.0, 0.0)) =! true
 
 [<Fact>]
 let ``selected and unselected return correct sets`` () =
-    let state =
-        createNodeState initialNodes
-        |> select (NodeId 1)
-        |> select (NodeId 2)
+    let state = createNodeState initialNodes |> select (NodeId 1) |> select (NodeId 2)
 
-    let sel =
-        selected state
-        |> Seq.map _.Id
-        |> Set.ofSeq
+    let sel = selected state |> Seq.map _.Id |> Set.ofSeq
 
-    let unsel =
-        unselected state
-        |> Seq.map _.Id
-        |> Set.ofSeq
+    let unsel = unselected state |> Seq.map _.Id |> Set.ofSeq
 
     sel =! Set.ofList [ NodeId 1; NodeId 2 ]
 
-    unsel
-    =! Set.ofList [ NodeId 0
-                    NodeId 3
-                    NodeId 4 ]
+    unsel =! Set.ofList [ NodeId 0; NodeId 3; NodeId 4 ]
