@@ -22,6 +22,7 @@
     <Compile Include="Systems/UndoRedo.fs" />
     <Compile Include="Systems/Selection.fs" />
     <Compile Include="Systems/Movement.fs" />
+    <Compile Include="Systems/Layout.fs" />
     <Compile Include="Systems/WorldActions.fs" />
     <Compile Include="Systems/Runner.fs" />
   </ItemGroup>

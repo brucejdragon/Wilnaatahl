@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <Compile Include="ModelTests.fs" />
-    <Compile Include="GraphViewFactoryTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

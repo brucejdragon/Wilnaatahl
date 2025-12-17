@@ -97,6 +97,8 @@ module FamilyGraph =
           CoParentRelationships = coParents
           Huwilp = huwilp }
 
+    let allPeople graph : Person seq = graph.People.Values
+
     let coparents graph = graph.CoParentRelationships
 
     let huwilp graph = graph.Huwilp

@@ -7,44 +7,16 @@ import TreeScene from "./TreeScene";
 import { eventActions, worldActions } from "../ecs";
 
 export default function App() {
-  const [familyGraph, nodes, firstWilp] = useMemo(() => {
-    const factory = new GraphViewFactory();
-    const graph = factory.LoadGraph();
-    return [graph, factory.LayoutGraph(graph), factory.FirstWilp(graph)];
-  }, []);
-
-  const {
-    destroyAllConnectors,
-    destroyAllTreeNodes,
-    spawnAllConnectors,
-    spawnTreeNode,
-    spawnWilpBox,
-  } = useActions(worldActions);
+  const familyGraph = useMemo(() => new GraphViewFactory().LoadGraph(), []);
+  const { destroyScene, layoutNodes, spawnScene } = useActions(worldActions);
 
   useEffect(() => {
-    // TODO: Spawn multiple huwilp once we support that.
-    const wilpId = spawnWilpBox(firstWilp);
-
-    // Spawn the tree nodes before connectors so the connectors can connect to them.
-    for (const node of nodes) {
-      spawnTreeNode(node.Person, node.TargetPosition, wilpId);
-    }
-    spawnAllConnectors(familyGraph);
+    spawnScene(familyGraph);
+    layoutNodes();
     return () => {
-      // Destroy the connectors before the tree nodes (it shouldn't matter, but just for symmetry).
-      destroyAllConnectors();
-      destroyAllTreeNodes();
+      destroyScene();
     };
-  }, [
-    familyGraph,
-    firstWilp,
-    nodes,
-    destroyAllConnectors,
-    destroyAllTreeNodes,
-    spawnAllConnectors,
-    spawnTreeNode,
-    spawnWilpBox,
-  ]);
+  }, [familyGraph, destroyScene, layoutNodes, spawnScene]);
 
   const { handlePointerMissed } = useActions(eventActions);
   return (
