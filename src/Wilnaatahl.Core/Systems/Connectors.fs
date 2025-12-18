@@ -79,7 +79,7 @@ let spawnAllConnectors familyGraph (world: IWorld) =
         // 4. A Hidden Bounding Box that includes all child nodes.
         // The margins are chosen based on what looks good.
         let boundingBoxId, _, boxBoundId =
-            world |> BoundingBox.spawn {| x = 0.6; y = 0.65; z = 0 |}
+            world |> BoundingBox.spawn {| x = 0.0; y = 0.65; z = 0 |}
 
         // We'll add the children to the bounding box later, so we can do all
         // child processing in one loop.
