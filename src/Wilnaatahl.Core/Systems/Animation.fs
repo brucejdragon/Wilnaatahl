@@ -10,7 +10,8 @@ let animate delta (world: IWorld) =
     world.QueryTraits(Position, TargetPosition).UpdateEachWith Always
     <| fun ((pos, targetPos), entity) ->
         let targetV, posV = targetPos.ToVector3(), pos.ToVector3()
-        let lambda = 6.0
+        //let lambda = 6.0
+        let lambda = 5.0
         let newV = damp posV targetV lambda delta
 
         // We need some tolerance due to funny business with IEEE 754 equality.

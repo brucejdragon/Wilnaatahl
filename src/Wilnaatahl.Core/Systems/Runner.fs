@@ -26,15 +26,15 @@ module private TypeScriptSystems =
 
 #endif
 
-let runSystems (world: IWorld) delta =
-    let changeTracker = createChanged ()
+let private allSystemsPositionChangeTracker = createChanged ()
 
+let runSystems (world: IWorld) delta =
     world
     |> animate delta
     |> dragNodes
     |> handleUndoRedo
     |> selectNodes
-    |> move changeTracker
+    |> move allSystemsPositionChangeTracker
     |> render
     |> cleanupEvents
     |> ignore

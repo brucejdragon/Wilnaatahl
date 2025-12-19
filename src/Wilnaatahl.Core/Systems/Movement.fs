@@ -119,6 +119,10 @@ let private moveLineDependants changedEntityId (world: IWorld) =
 
     | None -> () // The changed entity isn't a line endpoint, so there's nothing to do.
 
+// This will track changes across iterations of the main loop in move.
+// This has to be global because otherwise they allocate in an unbounded fashion, which is very bad.
+let private localChangeTracker = createChanged ()
+
 // ASSUMPTION: The Movement system runs after anything else that changes position: Specifically,
 // Animation and Dragging.
 let move globalChangeTracker (world: IWorld) =
@@ -131,9 +135,6 @@ let move globalChangeTracker (world: IWorld) =
     // The change tracker passed in can be used just once to detect changes from those systems before it resets.
     let mutable results =
         world.QueryTrait(Position, Changed([| Position |], globalChangeTracker)).ToSequence()
-
-    // This will track changes across iterations of the loop.
-    let localChangeTracker = createChanged ()
 
     while not (results |> Seq.isEmpty) && i < maxIterations do
         i <- i + 1

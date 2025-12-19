@@ -1,5 +1,6 @@
 import React, { useLayoutEffect } from "react";
-import { Mesh } from "three";
+import { Mesh, Vector3 } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { Entity } from "koota";
 import { useActions, useTrait } from "koota/react";
@@ -12,6 +13,27 @@ export function TreeNodeMesh({ entity }: { entity: Entity }) {
   const size = useTrait(entity, Size)!;
   const label = defaultArg(person.Label, undefined);
   const ref = React.useRef<Mesh>(null);
+  const { camera } = useThree();
+
+  // Compute distance from camera to mesh
+  const [fontSize, setFontSize] = React.useState(16);
+
+  // Use useFrame for smoother updates
+  useFrame(() => {
+    if (!ref.current) {
+      return;
+    }
+
+    // Get mesh world position.
+    const meshPos = ref.current.getWorldPosition(new Vector3());
+    const camPos = camera.position;
+    const distance = meshPos.distanceTo(camPos);
+
+    // Adjust this formula as needed for the scene scale.
+    // Clamp to reasonable min/max.
+    const size = Math.max(10, Math.min(32, 120 / distance));
+    setFontSize(size);
+  });
 
   useLayoutEffect(() => {
     if (!ref.current) {
@@ -50,9 +72,11 @@ export function TreeNodeMesh({ entity }: { entity: Entity }) {
             <div
               style={{
                 color: "white",
-                fontSize: "16px",
+                fontSize: `${fontSize}px`,
                 textAlign: "center",
                 pointerEvents: "none",
+                width: "160%",
+                marginLeft: "-30%",
               }}
             >
               {label}

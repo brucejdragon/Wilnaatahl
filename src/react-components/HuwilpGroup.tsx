@@ -23,7 +23,8 @@ export function HuwilpGroup() {
   // regular polygon.
   const faceWidth = 7;
   const huwilpCount = 3;
-  const faceDepth = faceWidth / (2 * Math.tan(Math.PI / huwilpCount));
+  //const faceDepth = faceWidth / (2 * Math.tan(Math.PI / huwilpCount));
+  const faceDepth = 0;
 
   // If you want to kick the tires on rotation, add this back:
   /*
