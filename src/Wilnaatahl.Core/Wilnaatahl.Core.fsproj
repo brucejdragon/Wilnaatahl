@@ -6,10 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="UndoableState.fs" />
     <Compile Include="Model.fs" />
-    <Compile Include="NodeState.fs" />
-    <Compile Include="ViewModel.fs" />
+    <Compile Include="ViewModel/UndoableState.fs" />
+    <Compile Include="ViewModel/NodeState.fs" />
+    <Compile Include="ViewModel/Layout.fs" />
+    <Compile Include="ViewModel/Scene.fs" />
+    <Compile Include="ViewModel/ViewModel.fs" />
   </ItemGroup>
 
   <ItemGroup>

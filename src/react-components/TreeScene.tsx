@@ -3,7 +3,7 @@ import { OrbitControls, DragControls, Html } from "@react-three/drei";
 import { JSX } from "react";
 import React from "react";
 import { MathUtils, Matrix4, Mesh, Quaternion, Vector3 } from "three";
-import { TreeNode } from "../generated/NodeState";
+import { TreeNode } from "../generated/ViewModel/NodeState";
 import {
   Msg_Animate,
   Msg_SelectNode,
@@ -11,7 +11,7 @@ import {
   Msg_StartDrag,
   Msg_DragBy,
   Msg_EndDrag,
-} from "../generated/ViewModel";
+} from "../generated/ViewModel/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
 import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
 

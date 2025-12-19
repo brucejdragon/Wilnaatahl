@@ -1,5 +1,5 @@
 import React from "react";
-import { Msg_$union, ViewModel, ViewState_ViewState } from "../generated/ViewModel";
+import { Msg_$union, ViewModel, ViewState_ViewState } from "../generated/ViewModel/ViewModel";
 
 type ViewModelContextData = {
   viewModel: ViewModel;

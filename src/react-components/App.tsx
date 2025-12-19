@@ -1,9 +1,8 @@
 import React from "react";
-import TreeScene from "./TreeScene";
-import { GraphViewFactory } from "../generated/ViewModel";
 import { Canvas } from "@react-three/fiber";
-import { Msg_DeselectAll, ViewModel } from "../generated/ViewModel";
+import { GraphViewFactory, Msg_DeselectAll, ViewModel } from "../generated/ViewModel/ViewModel";
 import { ViewModelContext } from "../context/viewModelContext";
+import TreeScene from "./TreeScene";
 import Toolbar from "./Toolbar";
 
 export default function App() {

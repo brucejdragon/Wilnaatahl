@@ -1,5 +1,5 @@
 import React from "react";
-import { Msg_ToggleSelection, Msg_Undo, Msg_Redo } from "../generated/ViewModel";
+import { Msg_ToggleSelection, Msg_Undo, Msg_Redo } from "../generated/ViewModel/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
 
 export default function Toolbar() {

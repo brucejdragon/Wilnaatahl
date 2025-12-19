@@ -55,15 +55,11 @@ type Msg =
     | Redo
     | Animate of NodeId * float * float * float
 
-/// This is a handy data structure for rendering the connectors between members of an
-/// immediate family.
-type Family = { Parents: NodeId * NodeId; Children: NodeId list }
-
 module ViewState =
     type ViewState =
         private
             { History: UndoableState<NodeState>
-              Families: Family list
+              Families: RenderedFamily list
               Drag: DragState
               LastTouchedNodeId: NodeId option
               SelectionMode: SelectionMode }
@@ -233,10 +229,10 @@ open ViewState
 type IViewModel =
     abstract CanRedo: ViewState -> bool
     abstract CanUndo: ViewState -> bool
-    abstract CreateInitialViewState: (seq<TreeNode> * seq<Family>) -> ViewState
-    abstract EnumerateFamilies: ViewState -> seq<Family>
-    abstract EnumerateChildren: ViewState -> Family -> seq<TreeNode>
-    abstract EnumerateParents: ViewState -> Family -> TreeNode * TreeNode
+    abstract CreateInitialViewState: (seq<TreeNode> * seq<RenderedFamily>) -> ViewState
+    abstract EnumerateFamilies: ViewState -> seq<RenderedFamily>
+    abstract EnumerateChildren: ViewState -> RenderedFamily -> seq<TreeNode>
+    abstract EnumerateParents: ViewState -> RenderedFamily -> TreeNode * TreeNode
     abstract EnumerateSelectedTreeNodes: ViewState -> seq<TreeNode>
     abstract EnumerateUnselectedTreeNodes: ViewState -> seq<TreeNode>
     abstract IsSingleSelectEnabled: ViewState -> bool
@@ -261,56 +257,23 @@ type ViewModel() =
 
 // Functionality to initialize the core ViewModel data structures in an interface for easier consumption from TypeScript.
 type IGraphViewFactory =
-    abstract ExtractFamilies: FamilyGraph -> seq<TreeNode> -> seq<Family>
+    abstract ExtractFamilies: FamilyGraph -> seq<TreeNode> -> seq<RenderedFamily>
     abstract FirstWilp: FamilyGraph -> WilpName
     abstract LayoutGraph: FamilyGraph -> WilpName -> seq<TreeNode>
     abstract LoadGraph: unit -> FamilyGraph
 
 type GraphViewFactory() =
     interface IGraphViewFactory with
-        member _.ExtractFamilies familyGraph nodes =
-            let nodesByPersonInWilp =
-                nodes
-                |> Seq.map (fun node -> (node.Person.Id.AsInt, node.RenderedInWilp), node.Id)
-                |> Map.ofSeq
-
-            // Each Person appears at most once in a rendered Wilp, so this mapping is guaranteed to be unique.
-            let personIdToNodeId wilp (personId: PersonId) =
-                nodesByPersonInWilp |> Map.tryFind (personId.AsInt, wilp)
-
-            let huwilpToRender = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
-
-            seq {
-                for rel in coparents familyGraph do
-                    let childrenOfMother = findChildren rel.Mother familyGraph
-                    let childrenOfFather = findChildren rel.Father familyGraph
-                    let childrenOfBoth = Set.intersect childrenOfMother childrenOfFather |> Set.toList
-
-                    for wilp in huwilpToRender do
-                        let mapId = personIdToNodeId wilp
-
-                        match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
-                        | Some motherId, Some fatherId, (_ :: _ as childrenIds) ->
-                            yield { Parents = motherId, fatherId; Children = childrenIds }
-                        | _ -> () // Nothing to render since we need both parents and at least one child.
-            }
+        member _.ExtractFamilies familyGraph nodes = Scene.extractFamilies familyGraph nodes
 
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
-            let place personAndNodeId (x, y) =
-                { Id = NodeId personAndNodeId
-                  RenderedInWilp = focusedWilp
-                  Position = 0.0, 0.0, 0.0
-                  TargetPosition = x, y, 0.0
-                  IsAnimating = true
-                  Person = familyGraph |> findPerson (PersonId personAndNodeId) }
+            let defaultSpacing =
+                { X = Scene.defaultXSpacing
+                  Y = Scene.defaultYSpacing
+                  Z = Scene.defaultZSpacing }
 
-            [ place 0 (-0.9, 0.0)
-              place 1 (1.0, 0.0)
-              place 2 (-1.9, -2.0)
-              place 3 (0.05, -2.0)
-              place 4 (2.0, -2.0) ]
-            |> Seq.ofList
+            familyGraph |> Scene.layoutGraph defaultSpacing focusedWilp
 
         member _.LoadGraph() = createFamilyGraph peopleAndParents
