@@ -41,6 +41,7 @@ type Person =
       Label: string option // TODO: Commit to schema for names (colonial vs. traditional)
       Wilp: WilpName option
       Shape: NodeShape
+      BirthOrder: int
       DateOfBirth: DateOnly option
       DateOfDeath: DateOnly option }
 
@@ -50,6 +51,7 @@ type Person =
           Label = None
           Wilp = None
           Shape = Sphere
+          BirthOrder = 0
           DateOfBirth = None
           DateOfDeath = None }
 
@@ -61,13 +63,33 @@ type ParentChildRelationship = { Parent: PersonId; Child: PersonId }
 /// the missing parent is modeled as a Person with no extra non-identifying information.
 type CoParentRelationship = { Mother: PersonId; Father: PersonId }
 
+/// A family tree centered around one Wilp, including coparents from outside that Wilp.
+/// If a Wilp has mutiple roots, then it will have more than one such tree.
+type WilpTree =
+    | Leaf of PersonId // Person with no descendants
+    | Family of Family
+
+    /// Gets the root of a WilpTree, which is either the Wilp member parent of a
+    /// descendant sub-tree, or a Wilp member leaf.
+    member this.Root =
+        match this with
+        | Leaf personId -> personId
+        | Family { WilpParent = personId; CoParentsAndDescendants = _ } -> personId
+
+/// A Wilp member with one or more coparents and their descendant sub-trees.
+and Family =
+    { WilpParent: PersonId
+      CoParentsAndDescendants: Map<PersonId, WilpTree seq> }
+
 module FamilyGraph =
+
     type FamilyGraph =
         private
             { People: Map<int, Person>
               ParentChildRelationshipsByParent: Map<int, ParentChildRelationship list>
               CoParentRelationships: Set<CoParentRelationship>
-              Huwilp: Set<WilpName> }
+              Huwilp: Set<WilpName>
+              HuwilpForests: Map<WilpName, WilpTree seq> }
 
     let createFamilyGraph (peopleAndParents: seq<Person * CoParentRelationship option>) =
         let peopleMap =
@@ -82,7 +104,6 @@ module FamilyGraph =
                     match maybeParents with
                     | Some parents ->
                         yield { Parent = parents.Mother; Child = person.Id }
-
                         yield { Parent = parents.Father; Child = person.Id }
                     | None -> () // Person has no recorded parents so they are a "root" in the family multi-graph.
             }
@@ -92,10 +113,63 @@ module FamilyGraph =
 
         let huwilp = peopleAndParents |> Seq.choose (fun (p, _) -> p.Wilp) |> Set.ofSeq
 
+        // Helper to build WilpTree recursively using coparent relationships.
+        let rec buildWilpTree person =
+            // Find all coparent relationships where this person is a parent
+            let coparentRels =
+                coParents
+                |> Set.filter (fun rel -> rel.Mother = person.Id || rel.Father = person.Id)
+                |> Set.toList
+
+            if List.isEmpty coparentRels then
+                Leaf person.Id
+            else
+                // For each coparent, find all children for this pair, and build a forest (seq) of their WilpTrees
+                let coParentsAndDescendants =
+                    coparentRels
+                    |> List.map (fun rel ->
+                        let coparentId = if rel.Mother = person.Id then rel.Father else rel.Mother
+                        // Find all children for this coparent pair
+                        let children =
+                            peopleAndParents
+                            |> Seq.choose (fun (p, maybeParents) ->
+                                match maybeParents with
+                                | Some rel' when rel' = rel -> Some p
+                                | _ -> None)
+                            |> Seq.toList
+                        // For each child, build their WilpTree
+                        let descendantTrees = children |> List.map buildWilpTree |> Seq.ofList
+                        // If no children, yield an empty sequence
+                        coparentId, descendantTrees)
+                    |> Map.ofList
+
+                Family
+                    { WilpParent = person.Id
+                      CoParentsAndDescendants = coParentsAndDescendants }
+
+        // For each Wilp, find root persons (with that Wilp and no parents).
+        let huwilpForests =
+            huwilp
+            |> Seq.map (fun w ->
+                let roots =
+                    peopleAndParents
+                    |> Seq.choose (fun (p, maybeParents) ->
+                        match p.Wilp, maybeParents with
+                        | Some w', None when w' = w -> Some p
+                        | _ -> None)
+
+                let trees = roots |> Seq.map buildWilpTree
+                w, trees)
+            |> Map.ofSeq
+
         { People = peopleMap
           ParentChildRelationshipsByParent = parentChildMap
           CoParentRelationships = coParents
-          Huwilp = huwilp }
+          Huwilp = huwilp
+          HuwilpForests = huwilpForests }
+
+    let allPeople graph =
+        graph.People |> Map.values :> Person seq
 
     let coparents graph = graph.CoParentRelationships
 
@@ -108,40 +182,93 @@ module FamilyGraph =
         | Some rels -> rels |> List.map (fun r -> r.Child) |> Set.ofList
         | None -> Set.empty
 
+    /// Catamorphism for WilpTree forests, one per WilpName. Returns a sequence of 'R, one for each root in the forest.
+    /// Uses the given callbacks to process leaves, parents, co-parents, and families, and to sort each level of the tree.
+    /// The visitLeaf callback takes a PersonId and returns a result value of type 'R. The visitParent and visitCoParent
+    /// callbacks each take a PersonId and returns a result value of type 'P or 'C, respectively. The visitFamily callback
+    /// takes the result for the Wilp parent and a sorted array of results for each co-parent and their descendants and
+    /// combines it all into a single result value.
+    let visitWilpForest
+        wilpName
+        (visitLeaf: PersonId -> 'R)
+        (visitParent: PersonId -> 'P)
+        (visitCoParent: PersonId -> 'C)
+        (visitFamily: 'P -> ('C * ('R seq))[] -> 'R)
+        (compare: Person -> Person -> int)
+        graph
+        : seq<'R> =
+        let rec visit tree =
+            match tree with
+            | Leaf personId -> visitLeaf personId
+            | Family family ->
+                let compareByPersonId personId1 personId2 =
+                    let person1, person2 = graph |> findPerson personId1, graph |> findPerson personId2
+                    compare person1 person2
+
+                let compareTreesByPersonId (tree1: WilpTree) (tree2: WilpTree) = compareByPersonId tree1.Root tree2.Root
+
+                let sortAndVisitChildGroupForest _ (trees: WilpTree seq) =
+                    trees |> Seq.sortWith compareTreesByPersonId |> Seq.map (fun t -> t, visit t)
+
+                let sortAndProcessSortedChildGroups sortedChildGroups =
+                    // We ignore the co-parent ID and results since we don't need them to sort.
+                    let compareSortedChildGroups (_, childGroup1) (_, childGroup2) =
+                        compareTreesByPersonId (childGroup1 |> Seq.head |> fst) (childGroup2 |> Seq.head |> fst)
+
+                    let stripTreesAndVisitCoParent (coParentId, childGroups) =
+                        visitCoParent coParentId, childGroups |> Seq.map snd
+
+                    sortedChildGroups
+                    |> Seq.sortWith compareSortedChildGroups
+                    |> Seq.map stripTreesAndVisitCoParent
+
+                // We sort each sub-tree and sort the sub-trees by first element before recursing downward.
+                let sortedCoParentResultsPairs =
+                    family.CoParentsAndDescendants
+                    |> Map.map sortAndVisitChildGroupForest
+                    |> Map.toSeq
+                    |> sortAndProcessSortedChildGroups
+                    |> Array.ofSeq
+
+                let parentResult = visitParent family.WilpParent
+                visitFamily parentResult sortedCoParentResultsPairs
+
+        match graph.HuwilpForests |> Map.tryFind wilpName with
+        | Some forest -> Seq.map visit forest
+        | None -> Seq.empty
+
 module Initial =
+
     let peopleAndParents =
-        [ { Id = PersonId 0
-            Label = None
-            Wilp = Some(WilpName "H")
-            Shape = Sphere
-            DateOfBirth = None
-            DateOfDeath = None },
+        [ { Person.Empty with
+              Id = PersonId 0
+              Shape = Sphere
+              Wilp = Some(WilpName "H") },
           None
-          { Id = PersonId 1
-            Label = Some "GGGG Grandfather"
-            Wilp = None
-            Shape = Cube
-            DateOfBirth = None
-            DateOfDeath = None },
+          { Person.Empty with
+              Id = PersonId 1
+              Label = Some "GGGG Grandfather"
+              Wilp = None
+              Shape = Cube },
           None
-          { Id = PersonId 2
-            Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
-            Wilp = Some(WilpName "H")
-            Shape = Sphere
-            DateOfBirth = None
-            DateOfDeath = None },
+          { Person.Empty with
+              Id = PersonId 2
+              Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
+              Wilp = Some(WilpName "H")
+              Shape = Sphere
+              BirthOrder = 0 },
           Some { Mother = PersonId 0; Father = PersonId 1 }
-          { Id = PersonId 3
-            Label = Some "GGG Granduncle H"
-            Wilp = Some(WilpName "H")
-            Shape = Cube
-            DateOfBirth = None
-            DateOfDeath = None },
+          { Person.Empty with
+              Id = PersonId 3
+              Label = Some "GGG Granduncle H"
+              Wilp = Some(WilpName "H")
+              BirthOrder = 1
+              Shape = Cube },
           Some { Mother = PersonId 0; Father = PersonId 1 }
-          { Id = PersonId 4
-            Label = Some "GGG Granduncle N"
-            Wilp = Some(WilpName "H")
-            Shape = Cube
-            DateOfBirth = None
-            DateOfDeath = None },
+          { Person.Empty with
+              Id = PersonId 4
+              Label = Some "GGG Granduncle N"
+              Wilp = Some(WilpName "H")
+              BirthOrder = 2
+              Shape = Cube },
           Some { Mother = PersonId 0; Father = PersonId 1 } ]
