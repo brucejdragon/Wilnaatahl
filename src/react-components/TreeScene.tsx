@@ -154,8 +154,12 @@ function FamilyGroup({
   children: Iterable<TreeNode>;
 }) {
   // Calculate the vector between the two parent nodes
-  const p1 = new Vector3(...parent1.Position);
-  const p2 = new Vector3(...parent2.Position);
+  // Figure out which parent is leftmost because this determines which
+  // parent connector is "top" and which is "bottom".
+  const [leftParent, rightParent] =
+    parent1.Position[0] < parent2.Position[0] ? [parent1, parent2] : [parent2, parent1];
+  const p1 = new Vector3(...leftParent.Position);
+  const p2 = new Vector3(...rightParent.Position);
   const dir = p2.clone().sub(p1).normalize();
 
   // Find a vector perpendicular to dir in the XY plane

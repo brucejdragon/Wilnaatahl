@@ -7,10 +7,14 @@ import { ViewModelContext } from "../context/viewModelContext";
 import Toolbar from "./Toolbar";
 
 export default function App() {
-  const factory = new GraphViewFactory();
-  const graph = factory.LoadGraph();
-  const nodes = factory.LayoutGraph(graph, factory.FirstWilp(graph));
-  const families = factory.ExtractFamilies(graph, nodes);
+  const [nodes, families] = React.useMemo(() => {
+    const factory = new GraphViewFactory();
+    const graph = factory.LoadGraph();
+    const nodes = factory.LayoutGraph(graph, factory.FirstWilp(graph));
+    const families = factory.ExtractFamilies(graph, nodes);
+    return [nodes, families];
+  }, []);
+
   const viewModel = new ViewModel();
   const [state, dispatch] = React.useReducer(
     viewModel.Update,
