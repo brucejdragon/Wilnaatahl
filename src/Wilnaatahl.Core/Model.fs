@@ -63,15 +63,15 @@ type ParentChildRelationship = { Parent: PersonId; Child: PersonId }
 /// the missing parent is modeled as a Person with no extra non-identifying information.
 type CoParentRelationship = { Mother: PersonId; Father: PersonId }
 
-// A family tree centered around one Wilp, including spouses from outside that Wilp.
+// A family tree centered around one Wilp, including coparents from outside that Wilp.
 // If a Wilp has mutiple roots, then it will have more than one such tree.
 type WilpTree =
     | Leaf of PersonId // Person with no descendants
     | Family of Family
-// A Wilp member with one or more spouses and their descendant sub-trees.
+// A Wilp member with one or more coparents and their descendant sub-trees.
 and Family =
     { WilpParent: PersonId
-      SpousesAndDescendants: Map<PersonId, WilpTree seq> }
+      CoParentsAndDescendants: Map<PersonId, WilpTree seq> }
 
 module FamilyGraph =
 
@@ -117,7 +117,7 @@ module FamilyGraph =
                 Leaf person.Id
             else
                 // For each coparent, find all children for this pair, and build a forest (seq) of their WilpTrees
-                let spousesAndDescendants =
+                let coParentsAndDescendants =
                     coparentRels
                     |> List.map (fun rel ->
                         let coparentId = if rel.Mother = person.Id then rel.Father else rel.Mother
@@ -137,7 +137,7 @@ module FamilyGraph =
 
                 Family
                     { WilpParent = person.Id
-                      SpousesAndDescendants = spousesAndDescendants }
+                      CoParentsAndDescendants = coParentsAndDescendants }
 
         // For each Wilp, find root persons (with that Wilp and no parents).
         let huwilpForests =
@@ -183,16 +183,16 @@ module FamilyGraph =
     /// Returns: sequence of 'R, one for each root in the forest
     let visitWilpForest
         wilpName
-        (leaf: PersonId -> 'R)
-        (family: PersonId -> Map<PersonId, 'R seq> -> 'R)
+        (leaf: PersonId -> FamilyGraph -> 'R)
+        (family: PersonId -> Map<PersonId, 'R seq> -> FamilyGraph -> 'R)
         graph
         : seq<'R> =
         let rec visit tree =
             match tree with
-            | Leaf pid -> leaf pid
+            | Leaf pid -> leaf pid graph
             | Family fam ->
-                let mapped = fam.SpousesAndDescendants |> Map.map (fun _ ts -> Seq.map visit ts)
-                family fam.WilpParent mapped
+                let mapped = fam.CoParentsAndDescendants |> Map.map (fun _ ts -> Seq.map visit ts)
+                family fam.WilpParent mapped graph
 
         match graph.HuwilpForests |> Map.tryFind wilpName with
         | Some forest -> Seq.map visit forest

@@ -260,153 +260,217 @@ type ViewModel() =
         member _.Update state msg = update state msg
 
 module Scene =
-    type private Vec3 = { X: float; Y: float; Z: float }
+    type Vec3 =
+        { X: float
+          Y: float
+          Z: float }
+
+        static member inline (+)(lhs, rhs) =
+            { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
 
     type private GridBox =
         { Size: Vec3
           ConnectX: float
-          SetPosition: Vec3 -> (PersonId * Vec3) seq }
+          FollowedBy: (GridBox * Vec3)[]
+          SetPosition: Vec3 -> (PersonId * Vec3) list }
+
+    module private GridBox =
+        let create size connectX setPosition =
+            { Size = size
+              ConnectX = connectX
+              FollowedBy = [||]
+              SetPosition = setPosition }
+
+        let rec setPosition pos box =
+            seq {
+                yield! box.SetPosition pos
+
+                yield!
+                    box.FollowedBy
+                    |> Array.map (fun (followerBox, offset) -> followerBox |> setPosition (pos + offset))
+                    |> Seq.concat
+            }
+
+        /// Creates a new box followed by all the given boxes that lays them out horizontally,
+        /// in the order given from left to right (lower to highers X co-ordinate), aligned to
+        /// the highest Y co-ordinate of the tallest box and sized to the deepest Z size.
+        let attachHorizontally (boxes: GridBox[]) =
+            let combineConnectXs (boxes: GridBox[]) =
+                let boxCount = boxes.Length
+                let middle = (boxCount - 1) / 2
+                let distanceToLeft = boxes[0 .. middle - 1] |> Array.sumBy _.Size.X
+
+                if boxCount % 2 <> 0 then
+                    distanceToLeft + boxes[middle].ConnectX
+                else
+                    let left, right = boxes[middle], boxes[middle + 1]
+
+                    // Trust me, it works, I did the math.
+                    (2.0 * distanceToLeft + left.ConnectX + left.Size.X + right.ConnectX) / 2.0
+
+            // Base case is that there is just one box, in which case we return it.
+            if boxes.Length = 1 then
+                boxes[0]
+            else
+                let size =
+                    { X = boxes |> Seq.sumBy _.Size.X
+                      Y = boxes |> Seq.map _.Size.Y |> Seq.max
+                      Z = boxes |> Seq.map _.Size.Z |> Seq.max }
+
+                let connectX = combineConnectXs boxes
+
+                let followNext distanceToTheLeft box =
+                    (box, { X = distanceToTheLeft; Y = size.Y - box.Size.Y; Z = 0.0 }), distanceToTheLeft + box.Size.X
+
+                let followers, _ = boxes |> Array.mapFold followNext 0
+
+                { Size = size
+                  ConnectX = connectX
+                  FollowedBy = followers
+                  SetPosition = fun _ -> [] }
+
+        /// Attaches two boxes vertically, taking into account possible skew on the X axis.
+        /// The given offset is the position of the upper box relative to the lower on the X axis.
+        /// If the value is 0, the two are aligned on the left edge. If it's negative, the upper box
+        /// extends to the left of the lower one, and its left edge will be the zero X point of the new
+        /// box. If it's positive, the lower box extends to the left of the upper one, and its left edge
+        /// will be the zero X point of the new box.
+        let attachVertically upperOffset lowerBox upperBox =
+            // Take into account skew, so if one box doesn't completely encompass the other's width,
+            // we get the right overall width. Since the offset is relative to the lower box, it should
+            // add to the upper box when positive, and add to the lower box when negative.
+            let adjustedLowerBoxWidth = max lowerBox.Size.X (-upperOffset + lowerBox.Size.X)
+            let adjustedHigherBoxWidth = max upperBox.Size.X (upperOffset + upperBox.Size.X)
+
+            let size =
+                { X = max adjustedLowerBoxWidth adjustedHigherBoxWidth
+                  Y = lowerBox.Size.Y + upperBox.Size.Y
+                  Z = max lowerBox.Size.Z upperBox.Size.Z }
+
+            { Size = size
+              ConnectX = upperBox.ConnectX
+              FollowedBy =
+                [| lowerBox, { X = max -upperOffset 0.0; Y = 0.0; Z = 0.0 }
+                   upperBox, { X = max upperOffset 0.0; Y = lowerBox.Size.Y; Z = 0.0 } |]
+              SetPosition = fun _ -> [] }
 
     let private leafWidth = 1.95
     let private familyHeight = 2.0
     let private coparentWidth = 1.9
     let private origin = { X = 0.0; Y = 0.0; Z = 0.0 }
 
-    let rec private leafBox personId =
+    // Used to sort people for layout by comparing Date of Birth (DoB), names if DoB is missing, or
+    // person ID if names are missing.
+    let private comparePeople familyGraph personId1 personId2 =
+        let person1, person2 =
+            familyGraph |> findPerson personId1, familyGraph |> findPerson personId2
+
+        match person1.DateOfBirth, person2.DateOfBirth with
+        | Some dob1, Some dob2 ->
+            // Fable doesn't appear to support DateOnly.CompareTo.
+            if dob1 < dob2 then -1
+            elif dob1 > dob2 then 1
+            else 0
+        | Some _, None -> 1
+        | None, Some _ -> -1
+        | None, None ->
+            match person1.Label, person2.Label with
+            | Some label1, Some label2 -> label1.CompareTo label2
+            | Some _, None -> 1
+            | None, Some _ -> -1
+            | None, None -> personId1.AsInt - personId2.AsInt
+
+    let private leafBox personId _ =
         let connectX = leafWidth / 2.0
+
+        let setPosition pos =
+            [ personId, { pos with X = connectX + pos.X } ]
 
         // This is effectively a 1-dimensional line in 3D space, but that's ok and
         // it makes the layout math easier.
-        { Size = { X = leafWidth; Y = 0.0; Z = 0.0 }
-          ConnectX = connectX
-          SetPosition = fun pos -> [ personId, { pos with X = connectX + pos.X } ] }
+        GridBox.create { X = leafWidth; Y = 0.0; Z = 0.0 } connectX setPosition
 
-    let private combineConnectXs boxes =
-        let b = boxes |> Array.ofSeq
-        let boxCount = b.Length
-        let middle = (boxCount - 1) / 2
-        let distanceToLeft = b[0 .. middle - 1] |> Array.sumBy _.Size.X
-
-        if boxCount % 2 <> 0 then
-            distanceToLeft + b[middle].ConnectX
-        else
-            let left, right = b[middle], b[middle + 1]
-
-            // Trust me, it works, I did the math.
-            (2.0 * distanceToLeft + left.ConnectX + left.Size.X + right.ConnectX) / 2.0
-
-    let rec private attachHorizontally (boxes: GridBox[]) =
-        // Base case is that there is just one box, in which case we return it.
-        if boxes.Length = 1 then
-            boxes[0]
-        else
-            let size =
-                { X = (boxes |> Seq.sumBy _.Size.X) + leafWidth // Add some horizontal buffer so lineages don't overlap.
-                  Y = boxes |> Seq.map _.Size.Y |> Seq.max
-                  Z = boxes |> Seq.map _.Size.Z |> Seq.max }
-
-            let connectX = combineConnectXs boxes
-
-            let setPosition pos =
-                seq {
-                    for i in [ 0 .. boxes.Length - 1 ] do
-                        let box = boxes[i]
-                        let distanceToTheLeft = leafWidth + (boxes[0 .. i - 1] |> Array.sumBy _.Size.X)
-
-                        yield!
-                            box.SetPosition
-                                { pos with
-                                    X = pos.X + distanceToTheLeft
-                                    Y = pos.Y + size.Y - box.Size.Y }
-                }
-
-            { Size = size; ConnectX = connectX; SetPosition = setPosition }
-
-    let rec private attachParentsToDescendants parentId spousesToUnattachedChildBoxes =
+    let private attachParentsToDescendants parentId coParentsToUnattachedChildBoxes familyGraph =
         let measureForParentBox (childGroupBoxes: GridBox[]) descendantsBox =
+            // NOTE: In this function, the parent X co-ordinates are relative to descendantsBox.
             if childGroupBoxes.Length = 1 then
                 // We ignore the node sizes since  we connect center-to-center
-                let parentBoxWidth = max descendantsBox.Size.X coparentWidth
-
-                let leftOffset =
-                    if descendantsBox.Size.X = parentBoxWidth then
-                        0.0
-                    else
-                        coparentWidth / 2.0 - descendantsBox.ConnectX
-
-                parentBoxWidth, leftOffset
+                let parentBoxWidth = coparentWidth
+                let parentX = descendantsBox.ConnectX - coparentWidth / 2.0
+                parentBoxWidth, parentX
             else
                 let leftChildGroupBox, rightChildGroupBox =
                     childGroupBoxes[0], childGroupBoxes[childGroupBoxes.Length - 1]
 
-                // Use leaf width to ensure buffer between parent boxes if descendant boxes are narrower.
-                let leftOffset =
-                    max (-1.0 * (leftChildGroupBox.ConnectX - coparentWidth / 2.0 - leafWidth / 2.0)) 0.0
+                let leftCoParentX = leftChildGroupBox.ConnectX - coparentWidth / 2.0
 
-                let rightOffset =
-                    max
-                        (rightChildGroupBox.ConnectX + coparentWidth / 2.0 + leafWidth / 2.0
-                         - rightChildGroupBox.Size.X)
-                        0.0
+                let rightCoParentX =
+                    descendantsBox.Size.X - rightChildGroupBox.Size.X
+                    + rightChildGroupBox.ConnectX
+                    + coparentWidth / 2.0
 
-                descendantsBox.Size.X + leftOffset + rightOffset, leftOffset
+                let parentBoxWidth = rightCoParentX - leftCoParentX
+                parentBoxWidth, leftCoParentX
 
-        let spouseMap =
-            spousesToUnattachedChildBoxes
-            |> Map.map (fun _ unattachedChildBoxes -> unattachedChildBoxes |> Array.ofSeq |> attachHorizontally)
+        let coParentMap =
+            coParentsToUnattachedChildBoxes
+            |> Map.map (fun _ unattachedChildBoxes -> unattachedChildBoxes |> Array.ofSeq |> GridBox.attachHorizontally)
 
-        let childGroupBoxes = spouseMap |> Map.values |> Array.ofSeq
+        let childGroupBoxes = coParentMap |> Map.values |> Array.ofSeq
+        let descendantsBox = GridBox.attachHorizontally childGroupBoxes
 
-        let descendantsBox = attachHorizontally childGroupBoxes
-        let parentBoxWidth, leftOffset = measureForParentBox childGroupBoxes descendantsBox
+        let parentBoxWidth, parentBoxOffset =
+            measureForParentBox childGroupBoxes descendantsBox
 
-        let size =
-            { descendantsBox.Size with
-                X = parentBoxWidth
-                Y = descendantsBox.Size.Y + familyHeight }
+        let parentBoxSize =
+            { descendantsBox.Size with X = parentBoxWidth; Y = familyHeight }
 
-        let centeredX = leftOffset + descendantsBox.ConnectX
-
-        let parentX =
+        let parentConnectX =
             if childGroupBoxes.Length % 2 <> 0 then
-                centeredX - coparentWidth / 2.0
+                descendantsBox.ConnectX - coparentWidth / 2.0
             else
-                centeredX
+                descendantsBox.ConnectX
 
         let setPosition pos =
-            seq {
-                yield parentId, { X = pos.X + parentX; Y = pos.Y + size.Y; Z = pos.Z + size.Z }
+            [ yield
+                  parentId,
+                  { X = pos.X + parentConnectX
+                    Y = pos.Y + parentBoxSize.Y
+                    Z = pos.Z + parentBoxSize.Z }
 
-                let spouseIds = spouseMap |> Map.keys |> Array.ofSeq
+              let placeCoParent distanceToTheLeft (i, coParentId) =
+                  let childGroupBox = coParentMap[coParentId]
 
-                for i in 0 .. spouseIds.Length - 1 do
-                    let spouseId = spouseIds[i]
-                    let childGroupBox = spouseMap[spouseId]
+                  let xOffset =
+                      if i < coParentMap.Count / 2 then
+                          -coparentWidth / 2.0
+                      else
+                          coparentWidth / 2.0
 
-                    let distanceToTheLeft =
-                        spouseIds[0 .. i - 1]
-                        |> Array.map (fun k -> Map.find k spouseMap)
-                        |> Array.sumBy _.Size.X
+                  let relativeX = distanceToTheLeft + childGroupBox.ConnectX + xOffset
 
-                    let xOffset =
-                        if i < spouseIds.Length / 2 then
-                            -coparentWidth / 2.0
-                        else
-                            coparentWidth / 2.0
+                  (coParentId,
+                   { X = pos.X + relativeX
+                     Y = pos.Y + parentBoxSize.Y
+                     Z = pos.Z + parentBoxSize.Z }),
+                  distanceToTheLeft + relativeX
 
-                    yield
-                        spouseId,
-                        { X = pos.X + distanceToTheLeft + childGroupBox.ConnectX + xOffset
-                          Y = pos.Y + size.Y
-                          Z = pos.Z + size.Z }
+              let coParentIds =
+                  coParentMap
+                  |> Map.keys
+                  |> Array.ofSeq
+                  |> Seq.sortWith (comparePeople familyGraph) // TODO: Find a way to sort descendants too!
 
-                yield! descendantsBox.SetPosition { pos with X = pos.X + leftOffset }
-            }
+              let coParentsWithCoordinates, _ =
+                  coParentIds |> Seq.indexed |> Seq.mapFold placeCoParent 0
 
-        { Size = size; ConnectX = parentX; SetPosition = setPosition }
+              yield! coParentsWithCoordinates ]
+
+        let parentBox = GridBox.create parentBoxSize parentConnectX setPosition
+        GridBox.attachVertically parentBoxOffset descendantsBox parentBox
 
     let private anchorRootBoxes rootBoxes =
-        let topLevelBox = attachHorizontally rootBoxes
+        let topLevelBox = GridBox.attachHorizontally rootBoxes
 
         let rootSetPosition innerSetPos pos =
             let rootPos = { pos with X = -topLevelBox.ConnectX; Y = -topLevelBox.Size.Y }
