@@ -20,10 +20,7 @@ let ``canUndo returns false for new state, true after saveCurrentForUndo`` () =
 
 [<Fact>]
 let ``canRedo returns false for new state, true after undo`` () =
-    let s =
-        createUndoableState 1
-        |> saveCurrentForUndo
-        |> setCurrent 2
+    let s = createUndoableState 1 |> saveCurrentForUndo |> setCurrent 2
 
     let s2 = undo s
     canRedo s2 =! true
@@ -35,22 +32,14 @@ let ``current returns present value`` () =
 
 [<Fact>]
 let ``clearRedo disables redo after undo`` () =
-    let s =
-        createUndoableState 1
-        |> saveCurrentForUndo
-        |> setCurrent 2
-        |> undo
+    let s = createUndoableState 1 |> saveCurrentForUndo |> setCurrent 2 |> undo
 
     let s2 = clearRedo s
     canRedo s2 =! false
 
 [<Fact>]
 let ``redo restores next future state`` () =
-    let s =
-        createUndoableState 1
-        |> saveCurrentForUndo
-        |> setCurrent 2
-        |> undo
+    let s = createUndoableState 1 |> saveCurrentForUndo |> setCurrent 2 |> undo
 
     let s2 = redo s
     current s2 =! 2
@@ -63,20 +52,14 @@ let ``redo does nothing if future is empty`` () =
 
 [<Fact>]
 let ``setCurrent changes present, leaves undo/redo unchanged`` () =
-    let s =
-        createUndoableState 1
-        |> saveCurrentForUndo
-        |> setCurrent 2
+    let s = createUndoableState 1 |> saveCurrentForUndo |> setCurrent 2
 
     current s =! 2
     canUndo s =! true
 
 [<Fact>]
 let ``undo restores previous state and enables redo`` () =
-    let s =
-        createUndoableState 1
-        |> saveCurrentForUndo
-        |> setCurrent 2
+    let s = createUndoableState 1 |> saveCurrentForUndo |> setCurrent 2
 
     let s2 = undo s
     current s2 =! 1

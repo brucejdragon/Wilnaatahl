@@ -6,12 +6,13 @@ open System.Collections.Generic
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 
-let private person id name shape wilp =
-    { Person.Empty with
+let private person id name shape wilp = {
+    Person.Empty with
         Id = PersonId id
         Label = Some name
         Wilp = wilp
-        Shape = shape }
+        Shape = shape
+}
 
 // Test data is public because they are shared by other tests.
 let p0 = person 0 "Mother" Sphere (Some(WilpName "H"))
@@ -22,12 +23,13 @@ let p4 = person 4 "Child3" Cube (Some(WilpName "H"))
 
 let coParents = { Mother = PersonId 0; Father = PersonId 1 }
 
-let peopleAndParents =
-    [ p0, None
-      p1, None
-      p2, Some coParents
-      p3, Some coParents
-      p4, Some coParents ]
+let peopleAndParents = [
+    p0, None
+    p1, None
+    p2, Some coParents
+    p3, Some coParents
+    p4, Some coParents
+]
 
 [<Fact>]
 let ``findPerson returns correct person for all ids`` () =

@@ -2,16 +2,9 @@ namespace Wilnaatahl.ViewModel
 
 /// Tracks past, present, and future states for undo/redo functionality.
 module UndoableState =
-    type UndoableState<'T> =
-        private
-            { Past: 'T list
-              Present: 'T
-              Future: 'T list }
+    type UndoableState<'T> = private { Past: 'T list; Present: 'T; Future: 'T list }
 
-    let createUndoableState initial =
-        { Past = []
-          Present = initial
-          Future = [] }
+    let createUndoableState initial = { Past = []; Present = initial; Future = [] }
 
     let canUndo state = not (List.isEmpty state.Past)
     let canRedo state = not (List.isEmpty state.Future)
@@ -27,15 +20,11 @@ module UndoableState =
     /// The present state becomes the next undoable state.
     let redo state =
         match state.Future with
-        | next :: rest ->
-            { Past = state.Present :: state.Past
-              Present = next
-              Future = rest }
+        | next :: rest -> { Past = state.Present :: state.Past; Present = next; Future = rest }
         | [] -> state
 
     /// Saves the current state for potential undo.
-    let saveCurrentForUndo state =
-        { state with Past = state.Present :: state.Past }
+    let saveCurrentForUndo state = { state with Past = state.Present :: state.Past }
 
     /// Sets the current state to a new value.
     /// The undo and redo stacks remain unchanged.
@@ -45,8 +34,9 @@ module UndoableState =
     /// The present state becomes the next redoable state.
     let undo state =
         match state.Past with
-        | prev :: rest ->
-            { Past = rest
-              Present = prev
-              Future = state.Present :: state.Future }
+        | prev :: rest -> {
+            Past = rest
+            Present = prev
+            Future = state.Present :: state.Future
+          }
         | [] -> state

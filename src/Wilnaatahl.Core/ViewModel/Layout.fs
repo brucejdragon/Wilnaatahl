@@ -7,19 +7,20 @@ open Fable.Core
 
 /// Represents a delta vector in 3D grid-space. The unit is specific to a frame of reference to
 /// help prevent mixing up co-ordinate spaces in layout calculations.
-type Vector<[<Measure>] 'u> =
-    { X: float<'u>
-      Y: float<'u>
-      Z: float<'u> }
+type Vector<[<Measure>] 'u> = {
+    X: float<'u>
+    Y: float<'u>
+    Z: float<'u>
+} with
 
-    static member inline (+)(lhs, rhs) =
-        { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
+    static member inline (+)(lhs, rhs) = { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
 
 module Vector =
-    let reframe<[<Measure>] 'u, [<Measure>] 'v> (conversionFactor: float<'v / 'u>) (vec: Vector<'u>) : Vector<'v> =
-        { X = vec.X * conversionFactor
-          Y = vec.Y * conversionFactor
-          Z = vec.Z * conversionFactor }
+    let reframe<[<Measure>] 'u, [<Measure>] 'v> (conversionFactor: float<'v / 'u>) (vec: Vector<'u>) : Vector<'v> = {
+        X = vec.X * conversionFactor
+        Y = vec.Y * conversionFactor
+        Z = vec.Z * conversionFactor
+    }
 
 /// Unit of measure (w means "world") that represents relative co-ordinates in the frame of reference of
 /// the box resulting from a horizontal or vertical attach operation.
@@ -37,19 +38,17 @@ type u
 type l
 
 /// Defines a frame of reference to help set the positions of points and other LayoutBoxes in world space.
-type LayoutBox<[<Measure>] 'u> =
-    private
-        {
-            /// Size of the box in 3 dimensional space.
-            Size: Vector<'u>
+type LayoutBox<[<Measure>] 'u> = private {
+    /// Size of the box in 3 dimensional space.
+    Size: Vector<'u>
 
-            /// Distance from the left edge of the box to the point on its top edge where the "parent-child
-            /// connector" should join. Used for alignment calculations when combining boxes.
-            ConnectX: float<'u>
+    /// Distance from the left edge of the box to the point on its top edge where the "parent-child
+    /// connector" should join. Used for alignment calculations when combining boxes.
+    ConnectX: float<'u>
 
-            /// Properties of the box that vary based on whether it's a leaf or composite box.
-            Payload: LayoutBoxPayload<'u>
-        }
+    /// Properties of the box that vary based on whether it's a leaf or composite box.
+    Payload: LayoutBoxPayload<'u>
+}
 
 /// Contains the parts of a LayoutBox that vary based on whether it contains other LayoutBoxes or not.
 and LayoutBoxPayload<[<Measure>] 'u> =
@@ -57,35 +56,33 @@ and LayoutBoxPayload<[<Measure>] 'u> =
     | Composite of CompositeLayoutBox<'u>
 
 /// Defines properties specific to a Composite LayoutBox.
-and CompositeLayoutBox<[<Measure>] 'u> =
-    {
-        /// Non-negative value indicating the horizontal distance from the left edge of the box to the left
-        /// edge of its leftmost nested box that is vertically aligned on the top edge.
-        TopLeftWidth: float<'u>
+and CompositeLayoutBox<[<Measure>] 'u> = {
+    /// Non-negative value indicating the horizontal distance from the left edge of the box to the left
+    /// edge of its leftmost nested box that is vertically aligned on the top edge.
+    TopLeftWidth: float<'u>
 
-        /// Non-negative value indicating the horizontal distance from the right edge of the box to the right
-        /// edge of its rightmost nested box that is vertically aligned on the top edge.
-        TopRightWidth: float<'u>
+    /// Non-negative value indicating the horizontal distance from the right edge of the box to the right
+    /// edge of its rightmost nested box that is vertically aligned on the top edge.
+    TopRightWidth: float<'u>
 
-        /// Collection of LayoutBoxes that are logically "contained" within this box and follow its origin at
-        /// a given offset.
-        Followers: (LayoutBox<'u> * Vector<'u>) seq
-    }
+    /// Collection of LayoutBoxes that are logically "contained" within this box and follow its origin at
+    /// a given offset.
+    Followers: (LayoutBox<'u> * Vector<'u>) seq
+}
 
 /// Options that control how two boxes are vertically attached.
-type AttachAboveOptions =
-    {
-        /// If true, the upper box's ConnectX property is used as the basis for the combined box's ConnectX.
-        /// Otherwise, the lower box's ConnectX property is used. Whichever one is used, it may be translated
-        /// to maintain relative X position from the new box's origin, depending on how the boxes' left edges
-        /// align vertically.
-        UseUpperConnectX: bool
+type AttachAboveOptions = {
+    /// If true, the upper box's ConnectX property is used as the basis for the combined box's ConnectX.
+    /// Otherwise, the lower box's ConnectX property is used. Whichever one is used, it may be translated
+    /// to maintain relative X position from the new box's origin, depending on how the boxes' left edges
+    /// align vertically.
+    UseUpperConnectX: bool
 
-        /// Distance on the X axis from the origin of the lower box to the left edge of the upper box.
-        /// If this value is negative, the upper box extends further left than the lower box, and conversely
-        /// if this value is positive. If zero, the boxes vertically align on their left edges.
-        UpperOffset: float<l>
-    }
+    /// Distance on the X axis from the origin of the lower box to the left edge of the upper box.
+    /// If this value is negative, the upper box extends further left than the lower box, and conversely
+    /// if this value is positive. If zero, the boxes vertically align on their left edges.
+    UpperOffset: float<l>
+}
 
 module LayoutBox =
     // Define some conversion constants for our units.
@@ -111,11 +108,13 @@ module LayoutBox =
     /// Small threshold to avoid numerical instability when normalizing vectors.
     let nearZero = 1e-9<w>
 
-    let createLeaf size connectX personId offset =
-        { Size = size; ConnectX = connectX; Payload = Leaf(personId, offset) }
+    let createLeaf size connectX personId offset = {
+        Size = size
+        ConnectX = connectX
+        Payload = Leaf(personId, offset)
+    }
 
-    let createComposite size connectX composite =
-        { Size = size; ConnectX = connectX; Payload = Composite composite }
+    let createComposite size connectX composite = { Size = size; ConnectX = connectX; Payload = Composite composite }
 
     let rec reframe<[<Measure>] 'u, [<Measure>] 'v>
         (conversionFactor: float<'v / 'u>)
@@ -128,14 +127,17 @@ module LayoutBox =
             match payload with
             | Leaf(personId, offset) -> Leaf(personId, offset |> Vector.reframe conversionFactor)
             | Composite composite ->
-                Composite
-                    { TopLeftWidth = composite.TopLeftWidth * conversionFactor
-                      TopRightWidth = composite.TopRightWidth * conversionFactor
-                      Followers = composite.Followers |> Seq.map reframeFollower }
+                Composite {
+                    TopLeftWidth = composite.TopLeftWidth * conversionFactor
+                    TopRightWidth = composite.TopRightWidth * conversionFactor
+                    Followers = composite.Followers |> Seq.map reframeFollower
+                }
 
-        { Size = box.Size |> Vector.reframe conversionFactor
-          ConnectX = box.ConnectX * conversionFactor
-          Payload = box.Payload |> reframePayload }
+        {
+            Size = box.Size |> Vector.reframe conversionFactor
+            ConnectX = box.ConnectX * conversionFactor
+            Payload = box.Payload |> reframePayload
+        }
 
     let rec setPosition pos box =
         seq {
@@ -169,15 +171,15 @@ module LayoutBox =
 
                 distanceToTheLeft + nextDistance
 
-            let distancesToTheLeft =
-                [| yield! boxes |> Array.pairwise |> Array.scan calculateNextDistance 0.0<w> |]
+            let distancesToTheLeft = [| yield! boxes |> Array.pairwise |> Array.scan calculateNextDistance 0.0<w> |]
 
-            let size =
-                { X =
+            let size = {
+                X =
                     distancesToTheLeft[distancesToTheLeft.Length - 1]
                     + boxes[boxes.Length - 1].Size.X
-                  Y = boxes |> Seq.map _.Size.Y |> Seq.max
-                  Z = boxes |> Seq.map _.Size.Z |> Seq.max }
+                Y = boxes |> Seq.map _.Size.Y |> Seq.max
+                Z = boxes |> Seq.map _.Size.Z |> Seq.max
+            }
 
             let connectX =
                 let boxCount = boxes.Length
@@ -194,9 +196,11 @@ module LayoutBox =
 
             let followAtDistance i =
                 boxes[i],
-                { X = distancesToTheLeft[i]
-                  Y = size.Y - boxes[i].Size.Y
-                  Z = 0.0<w> }
+                {
+                    X = distancesToTheLeft[i]
+                    Y = size.Y - boxes[i].Size.Y
+                    Z = 0.0<w>
+                }
 
             let followers = [ 0 .. boxes.Length - 1 ] |> Seq.map followAtDistance
 
@@ -208,12 +212,11 @@ module LayoutBox =
             let (leftmostCornerWidth, _), (_, rightmostCornerWidth) =
                 boxes[0] |> getCornerWidths, boxes[boxes.Length - 1] |> getCornerWidths
 
-            createComposite
-                size
-                connectX
-                { TopLeftWidth = leftmostCornerWidth
-                  TopRightWidth = rightmostCornerWidth
-                  Followers = followers }
+            createComposite size connectX {
+                TopLeftWidth = leftmostCornerWidth
+                TopRightWidth = rightmostCornerWidth
+                Followers = followers
+            }
 
     /// Attaches two boxes vertically, taking into account possible skew on the X axis.
     /// The given offset is the position of the upper box relative to the lower on the X axis.
@@ -233,10 +236,11 @@ module LayoutBox =
         let adjustedLowerBoxWidth = lowerOffsetX + lowerBox.Size.X * l2w
         let adjustedHigherBoxWidth = upperOffsetX + upperBox.Size.X * u2w
 
-        let size =
-            { X = max adjustedLowerBoxWidth adjustedHigherBoxWidth
-              Y = upperBox.Size.Y * u2w + lowerBox.Size.Y * l2w
-              Z = max (upperBox.Size.Z * u2w) (lowerBox.Size.Z * l2w) }
+        let size = {
+            X = max adjustedLowerBoxWidth adjustedHigherBoxWidth
+            Y = upperBox.Size.Y * u2w + lowerBox.Size.Y * l2w
+            Z = max (upperBox.Size.Z * u2w) (lowerBox.Size.Z * l2w)
+        }
 
         // We also need to translate the X connector in case the offset is non-negative, because that means the
         // upper box is not vertically aligned to the left edge of the new world-space box (which is aligned to
@@ -249,12 +253,12 @@ module LayoutBox =
 
         let lowerFollowerOffset = { X = lowerOffsetX; Y = 0.0<w>; Z = 0.0<w> }
 
-        let upperFollowerOffset =
-            { X = upperOffsetX; Y = lowerBox.Size.Y * l2w; Z = 0.0<w> }
+        let upperFollowerOffset = { X = upperOffsetX; Y = lowerBox.Size.Y * l2w; Z = 0.0<w> }
 
-        let followers =
-            [ lowerBox |> reframe l2w, lowerFollowerOffset
-              upperBox |> reframe u2w, upperFollowerOffset ]
+        let followers = [
+            lowerBox |> reframe l2w, lowerFollowerOffset
+            upperBox |> reframe u2w, upperFollowerOffset
+        ]
 
         // Distance to the right edge of the upper box relative to the combined box.
         let upperRightOffset = size.X - upperFollowerOffset.X - upperBox.Size.X * u2w
@@ -270,9 +274,8 @@ module LayoutBox =
                 min upperFollowerOffset.X (composite.TopLeftWidth * l2w),
                 min upperRightOffset (composite.TopRightWidth * l2w)
 
-        createComposite
-            size
-            connectX
-            { TopLeftWidth = topLeftWidth
-              TopRightWidth = topRightWidth
-              Followers = followers }
+        createComposite size connectX {
+            TopLeftWidth = topLeftWidth
+            TopRightWidth = topRightWidth
+            Followers = followers
+        }

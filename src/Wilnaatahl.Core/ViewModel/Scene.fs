@@ -91,10 +91,11 @@ module Scene =
         let rootBox = attachHorizontally rootBoxes
 
         rootBox
-        |> setPosition
-            { origin with
+        |> setPosition {
+            origin with
                 X = -rootBox.ConnectX - coparentWidth / 2.0
-                Y = -rootBox.Size.Y }
+                Y = -rootBox.Size.Y
+        }
 
     let rec private calculateLayoutBoxes spacing focusedWilp familyGraph =
         let upperSpacing = spacing |> Vector.reframe w2u
@@ -113,12 +114,14 @@ module Scene =
         let place (personId, { X = x; Y = y; Z = z }) =
             let person = familyGraph |> findPerson personId
 
-            { Id = NodeId personId.AsInt
-              RenderedInWilp = focusedWilp
-              Position = 0.0, 0.0, 0.0
-              TargetPosition = float x, float y, float z
-              IsAnimating = true
-              Person = person }
+            {
+                Id = NodeId personId.AsInt
+                RenderedInWilp = focusedWilp
+                Position = 0.0, 0.0, 0.0
+                TargetPosition = float x, float y, float z
+                IsAnimating = true
+                Person = person
+            }
 
         familyGraph |> calculateLayoutBoxes spacing focusedWilp |> Seq.map place
 

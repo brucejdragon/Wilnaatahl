@@ -36,24 +36,26 @@ type NodeShape =
     | Cube
 
 /// Everything we know about a person in the family tree.
-type Person =
-    { Id: PersonId
-      Label: string option // TODO: Commit to schema for names (colonial vs. traditional)
-      Wilp: WilpName option
-      Shape: NodeShape
-      BirthOrder: int
-      DateOfBirth: DateOnly option
-      DateOfDeath: DateOnly option }
+type Person = {
+    Id: PersonId
+    Label: string option // TODO: Commit to schema for names (colonial vs. traditional)
+    Wilp: WilpName option
+    Shape: NodeShape
+    BirthOrder: int
+    DateOfBirth: DateOnly option
+    DateOfDeath: DateOnly option
+} with
 
     /// Used for situations where we need a prototypical instance of Person just to infer its type.
-    static member Empty =
-        { Id = PersonId 0
-          Label = None
-          Wilp = None
-          Shape = Sphere
-          BirthOrder = 0
-          DateOfBirth = None
-          DateOfDeath = None }
+    static member Empty = {
+        Id = PersonId 0
+        Label = None
+        Wilp = None
+        Shape = Sphere
+        BirthOrder = 0
+        DateOfBirth = None
+        DateOfDeath = None
+    }
 
 /// Represents a parent-child relationship. For every Person with recorded parents,
 /// there will be two ParentChildRelationships, one for each parent.
@@ -77,19 +79,20 @@ type WilpTree =
         | Family { WilpParent = personId; CoParentsAndDescendants = _ } -> personId
 
 /// A Wilp member with one or more coparents and their descendant sub-trees.
-and Family =
-    { WilpParent: PersonId
-      CoParentsAndDescendants: Map<PersonId, WilpTree seq> }
+and Family = {
+    WilpParent: PersonId
+    CoParentsAndDescendants: Map<PersonId, WilpTree seq>
+}
 
 module FamilyGraph =
 
-    type FamilyGraph =
-        private
-            { People: Map<int, Person>
-              ParentChildRelationshipsByParent: Map<int, ParentChildRelationship list>
-              CoParentRelationships: Set<CoParentRelationship>
-              Huwilp: Set<WilpName>
-              HuwilpForests: Map<WilpName, WilpTree seq> }
+    type FamilyGraph = private {
+        People: Map<int, Person>
+        ParentChildRelationshipsByParent: Map<int, ParentChildRelationship list>
+        CoParentRelationships: Set<CoParentRelationship>
+        Huwilp: Set<WilpName>
+        HuwilpForests: Map<WilpName, WilpTree seq>
+    }
 
     let createFamilyGraph (peopleAndParents: seq<Person * CoParentRelationship option>) =
         let peopleMap =
@@ -143,9 +146,10 @@ module FamilyGraph =
                         coparentId, descendantTrees)
                     |> Map.ofList
 
-                Family
-                    { WilpParent = person.Id
-                      CoParentsAndDescendants = coParentsAndDescendants }
+                Family {
+                    WilpParent = person.Id
+                    CoParentsAndDescendants = coParentsAndDescendants
+                }
 
         // For each Wilp, find root persons (with that Wilp and no parents).
         let huwilpForests =
@@ -162,11 +166,13 @@ module FamilyGraph =
                 w, trees)
             |> Map.ofSeq
 
-        { People = peopleMap
-          ParentChildRelationshipsByParent = parentChildMap
-          CoParentRelationships = coParents
-          Huwilp = huwilp
-          HuwilpForests = huwilpForests }
+        {
+            People = peopleMap
+            ParentChildRelationshipsByParent = parentChildMap
+            CoParentRelationships = coParents
+            Huwilp = huwilp
+            HuwilpForests = huwilpForests
+        }
 
     let allPeople graph =
         graph.People |> Map.values :> Person seq
@@ -239,36 +245,47 @@ module FamilyGraph =
 
 module Initial =
 
-    let peopleAndParents =
-        [ { Person.Empty with
-              Id = PersonId 0
-              Shape = Sphere
-              Wilp = Some(WilpName "H") },
-          None
-          { Person.Empty with
-              Id = PersonId 1
-              Label = Some "GGGG Grandfather"
-              Wilp = None
-              Shape = Cube },
-          None
-          { Person.Empty with
-              Id = PersonId 2
-              Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
-              Wilp = Some(WilpName "H")
-              Shape = Sphere
-              BirthOrder = 0 },
-          Some { Mother = PersonId 0; Father = PersonId 1 }
-          { Person.Empty with
-              Id = PersonId 3
-              Label = Some "GGG Granduncle H"
-              Wilp = Some(WilpName "H")
-              BirthOrder = 1
-              Shape = Cube },
-          Some { Mother = PersonId 0; Father = PersonId 1 }
-          { Person.Empty with
-              Id = PersonId 4
-              Label = Some "GGG Granduncle N"
-              Wilp = Some(WilpName "H")
-              BirthOrder = 2
-              Shape = Cube },
-          Some { Mother = PersonId 0; Father = PersonId 1 } ]
+    let peopleAndParents = [
+        {
+            Person.Empty with
+                Id = PersonId 0
+                Shape = Sphere
+                Wilp = Some(WilpName "H")
+        },
+        None
+        {
+            Person.Empty with
+                Id = PersonId 1
+                Label = Some "GGGG Grandfather"
+                Wilp = None
+                Shape = Cube
+        },
+        None
+        {
+            Person.Empty with
+                Id = PersonId 2
+                Label = Some "GGG Grandmother" // Putting an underlined X̲ here for no particular reason...
+                Wilp = Some(WilpName "H")
+                Shape = Sphere
+                BirthOrder = 0
+        },
+        Some { Mother = PersonId 0; Father = PersonId 1 }
+        {
+            Person.Empty with
+                Id = PersonId 3
+                Label = Some "GGG Granduncle H"
+                Wilp = Some(WilpName "H")
+                BirthOrder = 1
+                Shape = Cube
+        },
+        Some { Mother = PersonId 0; Father = PersonId 1 }
+        {
+            Person.Empty with
+                Id = PersonId 4
+                Label = Some "GGG Granduncle N"
+                Wilp = Some(WilpName "H")
+                BirthOrder = 2
+                Shape = Cube
+        },
+        Some { Mother = PersonId 0; Father = PersonId 1 }
+    ]

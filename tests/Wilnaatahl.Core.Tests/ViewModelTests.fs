@@ -6,9 +6,7 @@ open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 open Wilnaatahl.Tests.NodeStateTests
 
-let private family =
-    { Parents = NodeId 1, NodeId 2
-      Children = [ NodeId 3; NodeId 4 ] }
+let private family = { Parents = NodeId 1, NodeId 2; Children = [ NodeId 3; NodeId 4 ] }
 
 let private families = [ family ]
 

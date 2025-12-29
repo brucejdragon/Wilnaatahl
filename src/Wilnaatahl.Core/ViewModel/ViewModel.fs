@@ -9,15 +9,14 @@ open Wilnaatahl.ViewModel.UndoableState
 open Fable.Core
 #endif
 
-type DragData =
-    {
-        /// The position of the node that started the drag;
-        /// Used to calculate new positions during the drag.
-        Origin: float * float * float
+type DragData = {
+    /// The position of the node that started the drag;
+    /// Used to calculate new positions during the drag.
+    Origin: float * float * float
 
-        /// Last node to be touched before the drag operation started.
-        LastTouchedNodeId: NodeId
-    }
+    /// Last node to be touched before the drag operation started.
+    LastTouchedNodeId: NodeId
+}
 
 type DragState =
     | Dragging of DragData
@@ -56,20 +55,21 @@ type Msg =
     | Animate of NodeId * float * float * float
 
 module ViewState =
-    type ViewState =
-        private
-            { History: UndoableState<NodeState>
-              Families: RenderedFamily list
-              Drag: DragState
-              LastTouchedNodeId: NodeId option
-              SelectionMode: SelectionMode }
+    type ViewState = private {
+        History: UndoableState<NodeState>
+        Families: RenderedFamily list
+        Drag: DragState
+        LastTouchedNodeId: NodeId option
+        SelectionMode: SelectionMode
+    }
 
-    let createViewState nodes families =
-        { History = createNodeState nodes |> createUndoableState
-          Families = List.ofSeq families
-          Drag = NotDragging
-          LastTouchedNodeId = None
-          SelectionMode = SingleSelect }
+    let createViewState nodes families = {
+        History = createNodeState nodes |> createUndoableState
+        Families = List.ofSeq families
+        Drag = NotDragging
+        LastTouchedNodeId = None
+        SelectionMode = SingleSelect
+    }
 
     let private areAnyNodesAnimating state =
         state.History |> current |> all |> Seq.exists (fun n -> n.IsAnimating)
@@ -118,14 +118,15 @@ module ViewState =
                 let tx, ty, tz = node.TargetPosition
                 abs (x - tx) < delta && abs (y - ty) < delta && abs (z - tz) < delta
 
-            let newNode =
-                { node with
+            let newNode = {
+                node with
                     Position =
                         if isAnimationFinished then
                             node.TargetPosition
                         else
                             newPosition
-                    IsAnimating = not isAnimationFinished }
+                    IsAnimating = not isAnimationFinished
+            }
 
             let updatedNodes = nodes |> replace nodeId newNode
 
@@ -145,18 +146,21 @@ module ViewState =
                 // - In SingleSelect mode, this either selects a node for the first time or replaces the previous selection.
                 // - In MultiSelect mode, this adds to the current selection.
                 match state.SelectionMode with
-                | SingleSelect ->
-                    { state with
+                | SingleSelect -> {
+                    state with
                         History = nodes |> deselectAll |> select nodeId |> commit
-                        Drag = NotDragging }
-                | MultiSelect ->
-                    { state with
+                        Drag = NotDragging
+                  }
+                | MultiSelect -> {
+                    state with
                         History = nodes |> select nodeId |> commit
-                        Drag = NotDragging }
-        | DeselectAll ->
-            { state with
+                        Drag = NotDragging
+                  }
+        | DeselectAll -> {
+            state with
                 History = nodes |> deselectAll |> commit
-                Drag = NotDragging }
+                Drag = NotDragging
+          }
         | StartDrag ->
             match state.LastTouchedNodeId with
             | Some nodeId ->
@@ -169,9 +173,11 @@ module ViewState =
                 else
                     // Use this opportunity to save the current node positions before
                     // they start changing for undo/redo.
-                    { state with
-                        History = state.History |> saveCurrentForUndo
-                        Drag = Dragging { Origin = node.Position; LastTouchedNodeId = nodeId } }
+                    {
+                        state with
+                            History = state.History |> saveCurrentForUndo
+                            Drag = Dragging { Origin = node.Position; LastTouchedNodeId = nodeId }
+                    }
             | None -> state // Shouldn't happen; Do nothing.
         | DragBy(moveX, moveY, moveZ) ->
             match state.Drag with
@@ -204,9 +210,11 @@ module ViewState =
         | ToggleSelection mode ->
             // We clear the selection when toggling selection mode so you don't end up
             // confusing the user by having multiple nodes selected when in single-selection mode.
-            { state with
-                History = nodes |> deselectAll |> commit
-                SelectionMode = mode }
+            {
+                state with
+                    History = nodes |> deselectAll |> commit
+                    SelectionMode = mode
+            }
         | TouchNode nodeId -> { state with LastTouchedNodeId = Some nodeId }
         | Undo ->
             let undoneHistory = undo state.History
@@ -269,10 +277,11 @@ type GraphViewFactory() =
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
-            let defaultSpacing =
-                { X = Scene.defaultXSpacing
-                  Y = Scene.defaultYSpacing
-                  Z = Scene.defaultZSpacing }
+            let defaultSpacing = {
+                X = Scene.defaultXSpacing
+                Y = Scene.defaultYSpacing
+                Z = Scene.defaultZSpacing
+            }
 
             familyGraph |> Scene.layoutGraph defaultSpacing focusedWilp
 
