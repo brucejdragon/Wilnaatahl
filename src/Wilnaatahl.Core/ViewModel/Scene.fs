@@ -28,7 +28,7 @@ module Scene =
         | None, Some _
         | None, None -> person1.BirthOrder - person2.BirthOrder
 
-    let private leafBox<[<Measure>] 'u> (spacing: Vector<'u>) height personId =
+    let private leafBox<[<Measure>] 'u> (spacing: LayoutVector<'u>) height personId =
         let leafWidth = spacing.X
         let connectX = leafWidth / 2.0
 
@@ -39,7 +39,7 @@ module Scene =
         createLeaf outerBoxSize connectX personId offset
 
     let private attachParentsToDescendants
-        (spacing: Vector<w>)
+        (spacing: LayoutVector<w>)
         (parentLeafBox: LayoutBox<u>)
         (coParentAndChildGroupBoxes: (LayoutBox<u> * LayoutBox<w> seq)[])
         : LayoutBox<w> =
@@ -95,7 +95,7 @@ module Scene =
         }
 
     let rec private calculateLayoutBoxes spacing focusedWilp familyGraph =
-        let upperSpacing = spacing |> Vector.reframe w2u
+        let upperSpacing = spacing |> LayoutVector.reframe w2u
 
         let visitLeaf = leafBox spacing 0.0<w>
         let visitParent = leafBox upperSpacing 0.0<u>

@@ -1,13 +1,10 @@
 namespace Wilnaatahl.ViewModel
 
 open Wilnaatahl.Model
-#if FABLE_COMPILER
-open Fable.Core
-#endif
 
-/// Represents a delta vector in 3D grid-space. The unit is specific to a frame of reference to
+/// Represents a vector in 3D space. The unit is specific to a frame of reference to
 /// help prevent mixing up co-ordinate spaces in layout calculations.
-type Vector<[<Measure>] 'u> = {
+type LayoutVector<[<Measure>] 'u> = {
     X: float<'u>
     Y: float<'u>
     Z: float<'u>
@@ -15,12 +12,16 @@ type Vector<[<Measure>] 'u> = {
 
     static member inline (+)(lhs, rhs) = { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
 
-module Vector =
-    let reframe<[<Measure>] 'u, [<Measure>] 'v> (conversionFactor: float<'v / 'u>) (vec: Vector<'u>) : Vector<'v> = {
-        X = vec.X * conversionFactor
-        Y = vec.Y * conversionFactor
-        Z = vec.Z * conversionFactor
-    }
+module LayoutVector =
+    let reframe<[<Measure>] 'u, [<Measure>] 'v>
+        (conversionFactor: float<'v / 'u>)
+        (vec: LayoutVector<'u>)
+        : LayoutVector<'v> =
+        {
+            X = vec.X * conversionFactor
+            Y = vec.Y * conversionFactor
+            Z = vec.Z * conversionFactor
+        }
 
 /// Unit of measure (w means "world") that represents relative co-ordinates in the frame of reference of
 /// the box resulting from a horizontal or vertical attach operation.
@@ -40,7 +41,7 @@ type l
 /// Defines a frame of reference to help set the positions of points and other LayoutBoxes in world space.
 type LayoutBox<[<Measure>] 'u> = private {
     /// Size of the box in 3 dimensional space.
-    Size: Vector<'u>
+    Size: LayoutVector<'u>
 
     /// Distance from the left edge of the box to the point on its top edge where the "parent-child
     /// connector" should join. Used for alignment calculations when combining boxes.
@@ -52,7 +53,7 @@ type LayoutBox<[<Measure>] 'u> = private {
 
 /// Contains the parts of a LayoutBox that vary based on whether it contains other LayoutBoxes or not.
 and LayoutBoxPayload<[<Measure>] 'u> =
-    | Leaf of PersonId * Vector<'u>
+    | Leaf of PersonId * LayoutVector<'u>
     | Composite of CompositeLayoutBox<'u>
 
 /// Defines properties specific to a Composite LayoutBox.
@@ -67,7 +68,7 @@ and CompositeLayoutBox<[<Measure>] 'u> = {
 
     /// Collection of LayoutBoxes that are logically "contained" within this box and follow its origin at
     /// a given offset.
-    Followers: (LayoutBox<'u> * Vector<'u>) seq
+    Followers: (LayoutBox<'u> * LayoutVector<'u>) seq
 }
 
 /// Options that control how two boxes are vertically attached.
@@ -122,10 +123,10 @@ module LayoutBox =
         : LayoutBox<'v> =
         let reframePayload payload =
             let reframeFollower (follower, offset) =
-                follower |> reframe conversionFactor, offset |> Vector.reframe conversionFactor
+                follower |> reframe conversionFactor, offset |> LayoutVector.reframe conversionFactor
 
             match payload with
-            | Leaf(personId, offset) -> Leaf(personId, offset |> Vector.reframe conversionFactor)
+            | Leaf(personId, offset) -> Leaf(personId, offset |> LayoutVector.reframe conversionFactor)
             | Composite composite ->
                 Composite {
                     TopLeftWidth = composite.TopLeftWidth * conversionFactor
@@ -134,7 +135,7 @@ module LayoutBox =
                 }
 
         {
-            Size = box.Size |> Vector.reframe conversionFactor
+            Size = box.Size |> LayoutVector.reframe conversionFactor
             ConnectX = box.ConnectX * conversionFactor
             Payload = box.Payload |> reframePayload
         }

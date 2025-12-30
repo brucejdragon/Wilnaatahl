@@ -9,7 +9,7 @@
     <Compile Include="Model.fs" />
     <Compile Include="ViewModel/UndoableState.fs" />
     <Compile Include="ViewModel/NodeState.fs" />
-    <Compile Include="ViewModel/Layout.fs" />
+    <Compile Include="ViewModel/LayoutBox.fs" />
     <Compile Include="ViewModel/Scene.fs" />
     <Compile Include="ViewModel/ViewModel.fs" />
   </ItemGroup>
