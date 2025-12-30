@@ -1,11 +1,11 @@
-import { ThreeEvent, useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import React from "react";
-import { MathUtils, Mesh } from "three";
+import { MathUtils, Mesh, Vector3 } from "three";
+import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
 import { TreeNode } from "../generated/ViewModel/NodeState";
 import { Msg_Animate } from "../generated/ViewModel/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
-import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
 
 export function TreeNodeMesh({
   node,
@@ -24,6 +24,10 @@ export function TreeNodeMesh({
   const [x, y, z] = node.Position;
   const label = defaultArg(person.Label, undefined);
   const ref = React.useRef<Mesh>(null);
+  const { camera } = useThree();
+
+  // Compute distance from camera to mesh
+  const [fontSize, setFontSize] = React.useState(16);
 
   useFrame((_, delta) => {
     if (!ref.current) {
@@ -40,6 +44,16 @@ export function TreeNodeMesh({
       const newZ = MathUtils.damp(z, tz, lambda, delta);
       dispatch(Msg_Animate(node.Id, newX, newY, newZ));
     }
+
+    // Get mesh world position.
+    const meshPos = ref.current.getWorldPosition(new Vector3());
+    const camPos = camera.position;
+    const distance = meshPos.distanceTo(camPos);
+
+    // Adjust this formula as needed for the scene scale.
+    // Clamp to reasonable min/max.
+    const size = Math.max(10, Math.min(32, 120 / distance));
+    setFontSize(size);
   });
 
   return (
@@ -57,16 +71,23 @@ export function TreeNodeMesh({
           emissive={isSelected ? selectedNodeColour : undefined}
           emissiveIntensity={isSelected ? 0.8 : 0}
         />
+        {label && (
+          <Html position={[0, -0.5, 0]} center>
+            <div
+              style={{
+                color: "white",
+                fontSize: `${fontSize}px`,
+                textAlign: "center",
+                pointerEvents: "none",
+                width: "160%",
+                marginLeft: "-30%",
+              }}
+            >
+              {label}
+            </div>
+          </Html>
+        )}
       </mesh>
-      {label && (
-        <Html position={[x, y - 0.5, z]} center>
-          <div
-            style={{ color: "white", fontSize: "16px", textAlign: "center", pointerEvents: "none" }}
-          >
-            {label}
-          </div>
-        </Html>
-      )}
     </>
   );
 }

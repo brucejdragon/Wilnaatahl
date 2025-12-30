@@ -1,5 +1,5 @@
-import { OrbitControls } from "@react-three/drei";
 import React from "react";
+import { OrbitControls } from "@react-three/drei";
 import { useViewModel } from "../context/viewModelContext";
 import { HuwilpGroup } from "./HuwilpGroup";
 
