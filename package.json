@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "init": "npm install && dotnet restore && dotnet tool restore",
     "fable": "dotnet fable --lang typescript --outDir ../generated --cwd ./src/Wilnaatahl.Core",
     "build": "npm run fable && tsc && vite build",
     "dev": "npm run fable && vite",
@@ -11,7 +12,7 @@
     "test": "pushd .\\tests\\Wilnaatahl.Core.Tests && dotnet test",
     "coverage": "pushd .\\tests\\Wilnaatahl.Core.Tests && dotnet test --collect:\"XPlat Code Coverage\"",
     "report": "pushd .\\tests\\Wilnaatahl.Core.Tests && reportgenerator -reports:%npm_config_coveragefile% -targetdir:coveragereport -reporttypes:Html && start ./coveragereport/index.html",
-    "format": "prettier --write ."
+    "format": "prettier --write . && fantomas ."
   },
   "devDependencies": {
     "@types/node": "^24.0.10",

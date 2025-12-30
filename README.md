@@ -52,9 +52,15 @@ dotnet --version   # Should return 9.0.x
 From the project root, run:
 
 ```powershell
-dotnet tool restore
-dotnet restore
+npm run init
+```
+
+This will run the following commands:
+
+```powershell
 npm install
+dotnet restore
+dotnet tool restore
 ```
 
 ## Commands for Dev Inner Loop
@@ -65,8 +71,9 @@ The following terminal commands are your dev inner loop:
 - To build for deployment: `npm run build`
 - To host the deployment-ready build locally for testing: `npx serve dist`
 - To run unit tests: `npm test`
-- To format the TypeScript code with Prettier: `npm run format`
+- To format the TypeScript code with Prettier and F# code with Fantomas: `npm run format`
   - Prettier is configured via the `.prettierrc` file in the project root. Files and folders to ignore are listed in `.prettierignore`.
+  - Fantomas is configured via the `.editorconfig` file in the project root.
 - To collect Code Coverage data and generate a Code Coverage report:
 
 ```powershell
