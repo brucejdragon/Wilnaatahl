@@ -277,12 +277,6 @@ type GraphViewFactory() =
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
         member _.LayoutGraph familyGraph focusedWilp =
-            let defaultSpacing = {
-                X = Scene.defaultXSpacing
-                Y = Scene.defaultYSpacing
-                Z = Scene.defaultZSpacing
-            }
-
-            familyGraph |> Scene.layoutGraph defaultSpacing focusedWilp
+            familyGraph |> Scene.layoutGraph focusedWilp
 
         member _.LoadGraph() = createFamilyGraph peopleAndParents

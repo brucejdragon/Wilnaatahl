@@ -2,31 +2,9 @@ module Wilnaatahl.Tests.NodeStateTests
 
 open Xunit
 open Swensen.Unquote
-open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 open Wilnaatahl.ViewModel.NodeState
-open Wilnaatahl.Tests.ModelTests
-
-let private treeNode id =
-    let person = peopleAndParents |> List.find (fun (p, _) -> p.Id = PersonId id) |> fst
-
-    {
-        Id = NodeId id
-        RenderedInWilp = WilpName "H"
-        Position = float id, float id, 0.0
-        TargetPosition = 0.0, 0.0, 0.0
-        IsAnimating = false
-        Person = person
-    }
-
-// Test data is public because they are shared by other tests.
-let node0 = treeNode 0
-let node1 = treeNode 1
-let node2 = treeNode 2
-let node3 = treeNode 3
-let node4 = treeNode 4
-
-let initialNodes = [ node0; node1; node2; node3; node4 ]
+open Wilnaatahl.Tests.TestData
 
 [<Fact>]
 let ``createNodeState initializes nodes and empty selection`` () =

@@ -5,31 +5,7 @@ open Swensen.Unquote
 open System.Collections.Generic
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
-
-let private person id name shape wilp = {
-    Person.Empty with
-        Id = PersonId id
-        Label = Some name
-        Wilp = wilp
-        Shape = shape
-}
-
-// Test data is public because they are shared by other tests.
-let p0 = person 0 "Mother" Sphere (Some(WilpName "H"))
-let p1 = person 1 "Father" Cube None
-let p2 = person 2 "Child1" Sphere (Some(WilpName "H"))
-let p3 = person 3 "Child2" Cube (Some(WilpName "L"))
-let p4 = person 4 "Child3" Cube (Some(WilpName "H"))
-
-let coParents = { Mother = PersonId 0; Father = PersonId 1 }
-
-let peopleAndParents = [
-    p0, None
-    p1, None
-    p2, Some coParents
-    p3, Some coParents
-    p4, Some coParents
-]
+open Wilnaatahl.Tests.TestData
 
 [<Fact>]
 let ``findPerson returns correct person for all ids`` () =

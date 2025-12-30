@@ -4,7 +4,7 @@ open Xunit
 open Swensen.Unquote
 open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
-open Wilnaatahl.Tests.NodeStateTests
+open Wilnaatahl.Tests.TestData
 
 let private family = { Parents = NodeId 1, NodeId 2; Children = [ NodeId 3; NodeId 4 ] }
 

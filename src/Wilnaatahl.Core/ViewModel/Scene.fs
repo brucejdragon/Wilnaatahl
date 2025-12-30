@@ -9,9 +9,9 @@ open Wilnaatahl.ViewModel.LayoutBox
 type RenderedFamily = { Parents: NodeId * NodeId; Children: NodeId list }
 
 module Scene =
-    let defaultXSpacing = 1.95<w>
-    let defaultYSpacing = 2.0<w>
-    let defaultZSpacing = 0.0<w>
+    let private defaultXSpacing = 1.95<w>
+    let private defaultYSpacing = 2.0<w>
+    let private defaultZSpacing = 0.0<w>
     let private origin = { X = 0.0<w>; Y = 0.0<w>; Z = 0.0<w> }
 
     // Used to sort people for layout by comparing Date of Birth (DoB), or birth order if DoB is missing.
@@ -94,7 +94,7 @@ module Scene =
                 Y = -rootBox.Size.Y
         }
 
-    let rec private calculateLayoutBoxes spacing focusedWilp familyGraph =
+    let private calculateLayoutBoxes spacing focusedWilp familyGraph =
         let upperSpacing = spacing |> LayoutVector.reframe w2u
 
         let visitLeaf = leafBox spacing 0.0<w>
@@ -107,7 +107,9 @@ module Scene =
         |> Array.ofSeq
         |> anchorRootBoxes spacing
 
-    let layoutGraph spacing focusedWilp familyGraph =
+    let layoutGraph focusedWilp familyGraph =
+        let spacing = { X = defaultXSpacing; Y = defaultYSpacing; Z = defaultZSpacing }
+
         let place (personId, { X = x; Y = y; Z = z }) =
             let person = familyGraph |> findPerson personId
 
