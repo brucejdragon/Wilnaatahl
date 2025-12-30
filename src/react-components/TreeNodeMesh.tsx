@@ -3,7 +3,7 @@ import { MathUtils, Mesh, Vector3 } from "three";
 import { ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { defaultArg } from "../generated/fable_modules/fable-library-ts.4.27.0/Option.js";
-import { TreeNode } from "../generated/ViewModel/NodeState";
+import { TreeNode } from "../generated/ViewModel/Scene";
 import { Msg_Animate } from "../generated/ViewModel/ViewModel";
 import { useViewModel } from "../context/viewModelContext";
 

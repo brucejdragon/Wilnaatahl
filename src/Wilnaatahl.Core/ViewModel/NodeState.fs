@@ -1,31 +1,6 @@
 namespace Wilnaatahl.ViewModel
 
 open Wilnaatahl.Model
-#if FABLE_COMPILER
-open Fable.Core
-#endif
-
-/// Represents a unique identifier for a renderable node.
-/// There can be more than one renderable node per Person, so this is distinct from PersonId.
-#if FABLE_COMPILER
-[<Erase>]
-#endif
-type NodeId =
-    | NodeId of int
-
-    member this.AsInt =
-        let (NodeId nodeId) = this
-        nodeId
-
-/// Represents a node in the tree.
-type TreeNode = {
-    Id: NodeId
-    RenderedInWilp: WilpName
-    Position: float * float * float
-    TargetPosition: float * float * float
-    IsAnimating: bool
-    Person: Person
-}
 
 /// Encapsulates the state of all nodes and selection.
 module NodeState =
@@ -40,7 +15,7 @@ module NodeState =
             yield! state.Nodes |> Map.values
         }
 
-    let createNodeState nodes = {
+    let createNodeState (nodes: TreeNode seq) = {
         Nodes = nodes |> Seq.map (fun node -> node.Id.AsInt, node) |> Map.ofSeq
         SelectedNodes = Map.empty
     }
@@ -55,7 +30,7 @@ module NodeState =
         | None -> state
 
     let deselectAll state =
-        let add ns node = ns |> Map.add node.Id.AsInt node
+        let add ns (node: TreeNode) = ns |> Map.add node.Id.AsInt node
 
         let newNodes = state.SelectedNodes.Values |> Seq.fold add state.Nodes
 

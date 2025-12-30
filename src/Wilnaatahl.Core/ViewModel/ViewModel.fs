@@ -272,7 +272,8 @@ type IGraphViewFactory =
 
 type GraphViewFactory() =
     interface IGraphViewFactory with
-        member _.ExtractFamilies familyGraph nodes = Scene.extractFamilies familyGraph nodes
+        member _.ExtractFamilies familyGraph nodes =
+            Scene.extractFamilies familyGraph (nodes |> Seq.map TreeNodeWrapper)
 
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 

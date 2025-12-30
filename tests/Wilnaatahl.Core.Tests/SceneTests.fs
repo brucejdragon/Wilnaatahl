@@ -10,7 +10,9 @@ open Wilnaatahl.Tests.TestData
 let ``ExtractFamilies produces correct results`` () =
     let graph = createFamilyGraph peopleAndParents
 
-    let families = Scene.extractFamilies graph initialNodes |> Seq.toList
+    let families =
+        Scene.extractFamilies graph (initialNodes |> Seq.map TreeNodeWrapper)
+        |> Seq.toList
 
     families.Length =! 1
     let fam = families.Head

@@ -3,10 +3,47 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 open Wilnaatahl.ViewModel.LayoutBox
+#if FABLE_COMPILER
+open Fable.Core
+#endif
+
+/// Represents a unique identifier for a renderable node.
+/// There can be more than one renderable node per Person, so this is distinct from PersonId.
+#if FABLE_COMPILER
+[<Erase>]
+#endif
+type NodeId =
+    | NodeId of int
+
+    member this.AsInt =
+        let (NodeId nodeId) = this
+        nodeId
+
+/// Represents information needed to render a family member in the context of their Wilp.
+type IFamilyMemberInfo =
+    abstract Id: NodeId
+    abstract Person: Person
+    abstract RenderedInWilp: WilpName
 
 /// This is a handy data structure for rendering the connectors between members of an
 /// immediate family.
 type RenderedFamily = { Parents: NodeId * NodeId; Children: NodeId list }
+
+/// Represents a node in the tree.
+type TreeNode = {
+    Id: NodeId
+    RenderedInWilp: WilpName
+    Position: float * float * float
+    TargetPosition: float * float * float
+    IsAnimating: bool
+    Person: Person
+}
+
+type TreeNodeWrapper(treeNode: TreeNode) =
+    interface IFamilyMemberInfo with
+        member _.Id = treeNode.Id
+        member _.Person = treeNode.Person
+        member _.RenderedInWilp = treeNode.RenderedInWilp
 
 module Scene =
     let private defaultXSpacing = 1.95<w>
@@ -124,14 +161,18 @@ module Scene =
 
         familyGraph |> calculateLayoutBoxes spacing focusedWilp |> Seq.map place
 
-    let extractFamilies familyGraph nodes =
+    /// Organizes the given sequence of family member info into a data structure useful in rendering
+    /// connectors between immediate family members in the tree scene.
+    let extractFamilies<'T when 'T :> IFamilyMemberInfo> familyGraph (nodes: 'T seq) =
+        // TODO: Make this a recursive depth-first traversal so that leaf-most families are returned before root-most.
+        // It needs to produce one tree traversal per Wilp and return the Wilp info with each Family.
         let nodesByPersonInWilp =
             nodes
-            |> Seq.map (fun node -> (node.Person.Id.AsInt, node.RenderedInWilp), node.Id)
+            |> Seq.map (fun f -> (f.Person.Id.AsInt, f.RenderedInWilp), f)
             |> Map.ofSeq
 
         // Each Person appears at most once in a rendered Wilp, so this mapping is guaranteed to be unique.
-        let personIdToNodeId wilp (personId: PersonId) =
+        let personIdToNode wilp (personId: PersonId) =
             nodesByPersonInWilp |> Map.tryFind (personId.AsInt, wilp)
 
         let huwilpToRender = nodes |> Seq.map _.RenderedInWilp |> Seq.distinct
@@ -143,10 +184,11 @@ module Scene =
                 let childrenOfBoth = Set.intersect childrenOfMother childrenOfFather |> Set.toList
 
                 for wilp in huwilpToRender do
-                    let mapId = personIdToNodeId wilp
+                    let getNode = personIdToNode wilp
+                    let getNodeId = getNode >> Option.map _.Id
 
-                    match mapId rel.Mother, mapId rel.Father, childrenOfBoth |> List.choose mapId with
-                    | Some motherId, Some fatherId, (_ :: _ as childrenIds) ->
-                        yield { Parents = motherId, fatherId; Children = childrenIds }
+                    match getNode rel.Mother, getNode rel.Father, childrenOfBoth |> List.choose getNodeId with
+                    | Some mother, Some father, (_ :: _ as childrenIds) ->
+                        yield { Parents = mother.Id, father.Id; Children = childrenIds }
                     | _ -> () // Nothing to render since we need both parents and at least one child.
         }

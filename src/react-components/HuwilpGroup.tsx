@@ -2,7 +2,7 @@ import React, { JSX } from "react";
 import { Matrix4, Quaternion, Vector3 } from "three";
 import { ThreeEvent } from "@react-three/fiber";
 import { DragControls } from "@react-three/drei";
-import { TreeNode } from "../generated/ViewModel/NodeState";
+import { TreeNode } from "../generated/ViewModel/Scene";
 import {
   Msg_SelectNode,
   Msg_TouchNode,
