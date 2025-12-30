@@ -3,9 +3,6 @@ namespace Wilnaatahl.ViewModel
 open Wilnaatahl.Model
 open Wilnaatahl.Model.FamilyGraph
 open Wilnaatahl.ViewModel.LayoutBox
-#if FABLE_COMPILER
-open Fable.Core
-#endif
 
 /// This is a handy data structure for rendering the connectors between members of an
 /// immediate family.
