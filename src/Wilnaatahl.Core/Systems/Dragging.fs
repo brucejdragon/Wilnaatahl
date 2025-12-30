@@ -51,15 +51,15 @@ let private handleDrag (world: IWorld) =
             match nodeEntity |> get Position with
             | Some oldPosition ->
                 let originV, moveV, oldPosV =
-                    Vector3.FromPosition origin, Vector3.FromPosition move, Vector3.FromPosition oldPosition
+                    Vector.fromPosition origin, Vector.fromPosition move, Vector.fromPosition oldPosition
 
                 let delta = originV + moveV - oldPosV
 
                 world.QueryTrait(Position, With Selected).UpdateEachWith Always
                 <| fun (pos, _) ->
-                    pos.x <- pos.x + delta.x
-                    pos.y <- pos.y + delta.y
-                    pos.z <- pos.z + delta.z
+                    pos.x <- pos.x + delta.X
+                    pos.y <- pos.y + delta.Y
+                    pos.z <- pos.z + delta.Z
 
                 Some dragEntity
             | None ->

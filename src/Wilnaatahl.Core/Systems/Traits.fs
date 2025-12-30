@@ -17,7 +17,7 @@ type MutableVector3 = {
     static member Empty = { x = 0; y = 0; z = 0 }
 
     member this.ToVector3() =
-        Vector3.FromComponents(this.x, this.y, this.z)
+        Vector.fromComponents (this.x, this.y, this.z)
 
 /// Used for entities that represent "tree nodes", i.e. people in the family tree.
 let PersonRef = refTrait (fun () -> Person.Empty)

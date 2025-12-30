@@ -18,18 +18,18 @@ let animate delta (world: IWorld) =
         let deltaV = newV - targetV
 
         if
-            Math.Abs deltaV.x < closeEnough
-            && Math.Abs deltaV.y < closeEnough
-            && Math.Abs deltaV.z < closeEnough
+            Math.Abs deltaV.X < closeEnough
+            && Math.Abs deltaV.Y < closeEnough
+            && Math.Abs deltaV.Z < closeEnough
         then
             // Animation is finished; Set exactly to target and remove TargetPosition.
-            pos.x <- targetV.x
-            pos.y <- targetV.y
-            pos.z <- targetV.z
+            pos.x <- targetV.X
+            pos.y <- targetV.Y
+            pos.z <- targetV.Z
             entity |> remove TargetPosition
         else
-            pos.x <- newV.x
-            pos.y <- newV.y
-            pos.z <- newV.z
+            pos.x <- newV.X
+            pos.y <- newV.Y
+            pos.z <- newV.Z
 
     world

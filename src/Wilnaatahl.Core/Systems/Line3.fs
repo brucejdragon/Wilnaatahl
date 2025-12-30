@@ -69,7 +69,7 @@ let getPositions (world: IWorld) lineId =
     let firstEndpointId, secondEndpointId = lineId |> getEndpoints world
 
     match firstEndpointId |> get Position, secondEndpointId |> get Position with
-    | Some firstPos, Some secondPos -> Vector3.FromPosition firstPos, Vector3.FromPosition secondPos
+    | Some firstPos, Some secondPos -> Vector.fromPosition firstPos, Vector.fromPosition secondPos
     | Some _, None
     | None, Some _
     | None, None -> failwith $"Found Line {lineId} with endpoint(s) that have no Position."

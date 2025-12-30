@@ -24,7 +24,7 @@ let private moveSnappedPoints (newPos: {| x: float; y: float; z: float |}) chang
 let private moveBoundingBoxes changedEntityId (world: IWorld) =
     world.QueryTrait(Size, With(BoundingBoxOn => changedEntityId)).ForEach
     <| fun (margins, boxId) ->
-        let marginsV = Vector3.FromPosition margins
+        let marginsV = Vector.fromPosition margins
 
         let updateBoxCorner (pos: MutableVector3) isBounds =
             // We can't adjust the whole box based on the movement of only one entity inside it,
@@ -37,7 +37,7 @@ let private moveBoundingBoxes changedEntityId (world: IWorld) =
                 boxId
                 |> targetsFor BoundingBoxOn
                 |> Array.choose (get Position)
-                |> Array.map Vector3.FromPosition
+                |> Array.map Vector.fromPosition
 
             let minPos = targetPoints |> Array.reduce min
             let maxBounds = targetPoints |> Array.reduce max
@@ -48,16 +48,16 @@ let private moveBoundingBoxes changedEntityId (world: IWorld) =
                 // Move the top-right-front corner of the box if needed.
                 let maxBoundsWithMargin = maxBounds + marginsV
                 let adjustedBounds = min (max posV maxBoundsWithMargin) maxBoundsWithMargin
-                pos.x <- adjustedBounds.x
-                pos.y <- adjustedBounds.y
-                pos.z <- adjustedBounds.z
+                pos.x <- adjustedBounds.X
+                pos.y <- adjustedBounds.Y
+                pos.z <- adjustedBounds.Z
             else
                 // Move the bottom-left-back corner of the box if needed.
                 let minPosWithMargin = minPos - marginsV
                 let adjustedPos = max (min posV minPosWithMargin) minPosWithMargin
-                pos.x <- adjustedPos.x
-                pos.y <- adjustedPos.y
-                pos.z <- adjustedPos.z
+                pos.x <- adjustedPos.X
+                pos.y <- adjustedPos.Y
+                pos.z <- adjustedPos.Z
 
         boxId |> BoundingBox.updateCorners world Always updateBoxCorner
 
@@ -65,7 +65,7 @@ let private moveBoundingBoxes changedEntityId (world: IWorld) =
 
 let private verticallyPerpendicularUnitVector v1 v2 =
     let dir = v2 - v1 |> normalize
-    let up = Vector3.FromComponents(0.0, 1.0, 0.0)
+    let up = Vector.fromComponents (0.0, 1.0, 0.0)
 
     // Project up onto plane perpendicular to dir.
     let perpUp = up - up .* dir * dir
@@ -78,10 +78,10 @@ let private verticallyPerpendicularUnitVector v1 v2 =
     else
         // Line is vertical; choose a horizontal perpendicular.
         let alt =
-            if abs dir.x < abs dir.z then
-                Vector3.FromComponents(1.0, 0.0, 0.0)
+            if abs dir.X < abs dir.Z then
+                Vector.fromComponents (1.0, 0.0, 0.0)
             else
-                Vector3.FromComponents(0.0, 0.0, 0.1)
+                Vector.fromComponents (0.0, 0.0, 0.1)
 
         alt - alt .* dir * dir |> normalize
 
@@ -93,9 +93,9 @@ let private moveLineDependants changedEntityId (world: IWorld) =
 
         world.QueryTrait(Position, With(Bisects => lineId)).UpdateEachWith Always
         <| fun (pos, _) ->
-            pos.x <- midpoint.x
-            pos.y <- midpoint.y
-            pos.z <- midpoint.z
+            pos.x <- midpoint.X
+            pos.y <- midpoint.Y
+            pos.z <- midpoint.Z
 
         // Lazily compute this once for Parallels because it's expensive.
         let n = lazy verticallyPerpendicularUnitVector v1 v2
@@ -112,9 +112,9 @@ let private moveLineDependants changedEntityId (world: IWorld) =
                     else
                         trackedLinePos - offset
 
-                pos.x <- newPos.x
-                pos.y <- newPos.y
-                pos.z <- newPos.z
+                pos.x <- newPos.X
+                pos.y <- newPos.Y
+                pos.z <- newPos.Z
 
             parallelLineId |> Line3.updateEndpoints world Always (update v1) (update v2)
 

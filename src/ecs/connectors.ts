@@ -7,5 +7,5 @@ import { fromKootaWorld } from "./kootaWrapper";
 export function getLinePositions(world: World, line: Entity & EntityId) {
   const wrappedWorld = fromKootaWorld(world);
   const [v1, v2] = wrappedGetLinePositions(wrappedWorld, line);
-  return [new Vector3(v1.x, v1.y, v1.z), new Vector3(v2.x, v2.y, v2.z)];
+  return [new Vector3(v1.X, v1.Y, v1.Z), new Vector3(v2.X, v2.Y, v2.Z)];
 }
