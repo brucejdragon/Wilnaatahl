@@ -277,7 +277,30 @@ type GraphViewFactory() =
 
         member _.FirstWilp familyGraph = familyGraph |> huwilp |> Seq.head // ASSUMPTION: At least one Wilp is represented in the input data.
 
-        member _.LayoutGraph familyGraph focusedWilp =
-            familyGraph |> Scene.layoutGraph focusedWilp
+        member _.LayoutGraph familyGraph wilp =
+            let setPositions (initialPosition, rootBox) =
+                let visitLeaf pos personId offset =
+                    (personId, pos + offset) |> Seq.singleton
+
+                let visitComposite pos results =
+                    results
+                    |> Seq.concat
+                    |> Seq.map (fun (personId, offset) -> personId, pos + offset)
+
+                rootBox |> LayoutBox.visit visitLeaf visitComposite initialPosition
+
+            let place (personId, { X = x; Y = y; Z = z }) =
+                let person = familyGraph |> findPerson personId
+
+                {
+                    Id = NodeId personId.AsInt
+                    RenderedInWilp = wilp
+                    Position = 0.0, 0.0, 0.0
+                    TargetPosition = float x, float y, float z
+                    IsAnimating = true
+                    Person = person
+                }
+
+            familyGraph |> Scene.layoutGraph wilp |> setPositions |> Seq.map place
 
         member _.LoadGraph() = createFamilyGraph peopleAndParents

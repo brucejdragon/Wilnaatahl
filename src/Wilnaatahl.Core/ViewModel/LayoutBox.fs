@@ -12,7 +12,11 @@ type LayoutVector<[<Measure>] 'u> = {
 
     static member inline (+)(lhs, rhs) = { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
 
+/// Definies utilities for working with LayoutVectors.
 module LayoutVector =
+
+    /// Changes the units of a vector. Unlike changing units of scalars, this has a runtime cost because
+    /// it must allocate a new vector to hold the converted co-ordinates.
     let reframe<[<Measure>] 'u, [<Measure>] 'v>
         (conversionFactor: float<'v / 'u>)
         (vec: LayoutVector<'u>)
@@ -109,14 +113,18 @@ module LayoutBox =
     /// Small threshold to avoid numerical instability when normalizing vectors.
     let nearZero = 1e-9<w>
 
+    /// Creates a leaf LayoutBox with the given property values.
     let createLeaf size connectX personId offset = {
         Size = size
         ConnectX = connectX
         Payload = Leaf(personId, offset)
     }
 
+    /// Creates a composite LayoutBox with the given property values.
     let createComposite size connectX composite = { Size = size; ConnectX = connectX; Payload = Composite composite }
 
+    /// Changes the units of a LayoutBox. Unlike changing units of scalars, this has a runtime cost because
+    /// it must allocate a new box to hold the converted co-ordinates and vectors.
     let rec reframe<[<Measure>] 'u, [<Measure>] 'v>
         (conversionFactor: float<'v / 'u>)
         (box: LayoutBox<'u>)
@@ -140,16 +148,16 @@ module LayoutBox =
             Payload = box.Payload |> reframePayload
         }
 
-    let rec setPosition pos box =
-        seq {
+    /// Visits a LayoutBox and all its nested boxes, if any. The given callbacks are invoked for leaf and
+    /// composite boxes, respectively. Each callback also takes a position for the box, which is taken
+    /// from composite box followers, or the initial position passed in for the root box.
+    let visit visitLeaf visitComposite initialPosition rootBox =
+        let rec recurse (box, pos) =
             match box.Payload with
-            | Leaf(personId, offset) -> yield personId, pos + offset
-            | Composite composite ->
-                yield!
-                    composite.Followers
-                    |> Seq.map (fun (followerBox, offset) -> followerBox |> setPosition (pos + offset))
-                    |> Seq.concat
-        }
+            | Leaf(personId, offset) -> visitLeaf pos personId offset
+            | Composite composite -> composite.Followers |> Seq.map recurse |> visitComposite pos
+
+        recurse (rootBox, initialPosition)
 
     /// Creates a new box followed by all the given boxes that lays them out horizontally,
     /// in the order given from left to right (lower to highers X co-ordinate), aligned to

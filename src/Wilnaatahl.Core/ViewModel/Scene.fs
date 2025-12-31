@@ -120,18 +120,11 @@ module Scene =
         parentLeafBox
         |> attachAbove descendantsBox { UseUpperConnectX = true; UpperOffset = parentLeftEdge }
 
-    let private anchorRootBoxes spacing rootBoxes =
-        let coparentWidth = spacing.X
-        let rootBox = attachHorizontally rootBoxes
-
-        rootBox
-        |> setPosition {
-            origin with
-                X = -rootBox.ConnectX - coparentWidth / 2.0
-                Y = -rootBox.Size.Y
-        }
-
-    let private calculateLayoutBoxes spacing focusedWilp familyGraph =
+    /// Produces a LayoutBox and initial position for the given Wilp. The LayoutBox, along with its nested boxes,
+    /// specifies relative offsets that determine the position of every node in the Wilp family tree. The caller
+    /// can process the returned LayoutBox using the LayoutBox.visit function.
+    let layoutGraph wilp familyGraph =
+        let spacing = { X = defaultXSpacing; Y = defaultYSpacing; Z = defaultZSpacing }
         let upperSpacing = spacing |> LayoutVector.reframe w2u
 
         let visitLeaf = leafBox spacing 0.0<w>
@@ -139,27 +132,21 @@ module Scene =
         let visitCoParent = leafBox upperSpacing upperSpacing.Y
         let visitFamilies = attachParentsToDescendants spacing
 
-        familyGraph
-        |> visitWilpForest focusedWilp visitLeaf visitParent visitCoParent visitFamilies comparePeople
-        |> Array.ofSeq
-        |> anchorRootBoxes spacing
+        let rootBox =
+            familyGraph
+            |> visitWilpForest wilp visitLeaf visitParent visitCoParent visitFamilies comparePeople
+            |> Array.ofSeq
+            |> attachHorizontally
 
-    let layoutGraph focusedWilp familyGraph =
-        let spacing = { X = defaultXSpacing; Y = defaultYSpacing; Z = defaultZSpacing }
+        let coparentWidth = spacing.X
 
-        let place (personId, { X = x; Y = y; Z = z }) =
-            let person = familyGraph |> findPerson personId
+        let rootOffset = {
+            origin with
+                X = -rootBox.ConnectX - coparentWidth / 2.0
+                Y = -rootBox.Size.Y
+        }
 
-            {
-                Id = NodeId personId.AsInt
-                RenderedInWilp = focusedWilp
-                Position = 0.0, 0.0, 0.0
-                TargetPosition = float x, float y, float z
-                IsAnimating = true
-                Person = person
-            }
-
-        familyGraph |> calculateLayoutBoxes spacing focusedWilp |> Seq.map place
+        rootOffset, rootBox
 
     /// Organizes the given sequence of family member info into a data structure useful in rendering
     /// connectors between immediate family members in the tree scene.
