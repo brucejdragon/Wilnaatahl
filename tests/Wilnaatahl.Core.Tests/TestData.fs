@@ -11,14 +11,16 @@ let private person id name shape wilp = {
         Shape = shape
 }
 
-// Test data is public because they are shared by other tests.
-let p0 = person 0 "Mother" Sphere (Some(WilpName "H"))
-let p1 = person 1 "Father" Cube None
-let p2 = person 2 "Child1" Sphere (Some(WilpName "H"))
-let p3 = person 3 "Child2" Cube (Some(WilpName "L"))
-let p4 = person 4 "Child3" Cube (Some(WilpName "H"))
+let testWilp = Some(WilpName "H")
 
-let coParents = { Mother = PersonId 0; Father = PersonId 1 }
+// Test data is public because they are shared by other tests.
+let p0 = person 0 "Mother" Sphere testWilp
+let p1 = person 1 "Father" Cube None
+let p2 = person 2 "Child1" Sphere testWilp
+let p3 = person 3 "Child2" Cube (Some(WilpName "L"))
+let p4 = person 4 "Child3" Cube testWilp
+
+let coParents = { Mother = p0.Id; Father = p1.Id }
 
 let peopleAndParents = [
     p0, None
@@ -27,6 +29,25 @@ let peopleAndParents = [
     p3, Some coParents
     p4, Some coParents
 ]
+
+// Now we define an extended test data set to cover all corner cases.
+let p5 = person 5 "Child4" Cube testWilp
+let p6 = person 6 "DaughterInLaw1" Sphere None
+let p7 = person 7 "DaughterInLaw2" Sphere None
+let p8 = person 8 "GrandChild1" Sphere testWilp
+let p9 = person 9 "GrandChild2" Cube testWilp
+let p10 = person 10 "GrandChild3" Cube testWilp
+
+let extendedFamily =
+    peopleAndParents
+    @ [
+        p5, Some coParents
+        p6, None
+        p7, None
+        p8, Some { Mother = p6.Id; Father = p5.Id }
+        p9, Some { Mother = p6.Id; Father = p5.Id }
+        p10, Some { Mother = p7.Id; Father = p5.Id }
+    ]
 
 let private treeNode id =
     let person = peopleAndParents |> List.find (fun (p, _) -> p.Id = PersonId id) |> fst
