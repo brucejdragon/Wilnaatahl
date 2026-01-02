@@ -33,6 +33,17 @@ Wilnaatahl visualizes genealogical relationships of Gitxsan huwilp members. It i
 - **3D rendering** is handled via `@react-three/fiber` in `TreeScene.tsx`.
 - **Styling** is via `src/style.css`.
 
+### F# Unit Test Requirements
+
+- All public members must have direct test coverage, including edge cases and composite scenarios.
+- Tests must use direct equality assertions (e.g., `x =! y`), not pattern matching or mutation.
+- Avoid pattern matching on union cases or record fields; prefer direct equality checks.
+- Do not use mutation or imperative style; tests should be functional and minimal.
+- Use `[<Fact>]` for single-case tests and `[<Theory>]` for parameterized edge cases.
+- Update expected values to match actual code output when business logic changes.
+- Fix all compilation and test errors before considering the work complete.
+- Prefer idiomatic, robust, and maintainable F# style in all test code.
+
 ## Integration & Patterns
 
 - **Interop:** Never hand-edit files in `src/generated/`; always regenerate from F#.
