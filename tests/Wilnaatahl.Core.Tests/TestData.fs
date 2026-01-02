@@ -1,5 +1,6 @@
 module Wilnaatahl.Tests.TestData
 
+open System
 open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 
@@ -14,11 +15,26 @@ let private person id name shape wilp = {
 let testWilp = Some(WilpName "H")
 
 // Test data is public because they are shared by other tests.
+// Include some birthdates to exercise sorting.
 let p0 = person 0 "Mother" Sphere testWilp
 let p1 = person 1 "Father" Cube None
-let p2 = person 2 "Child1" Sphere testWilp
-let p3 = person 3 "Child2" Cube (Some(WilpName "L"))
-let p4 = person 4 "Child3" Cube testWilp
+
+let p2 = {
+    person 2 "Child1" Sphere testWilp with
+        DateOfBirth = Some(DateOnly(1900, 1, 1))
+        BirthOrder = 0
+}
+
+let p3 = {
+    person 3 "Child2" Cube (Some(WilpName "L")) with
+        DateOfBirth = Some(DateOnly(1900, 1, 1))
+        BirthOrder = 1
+}
+
+let p4 = {
+    person 4 "Child3" Cube testWilp with
+        DateOfBirth = Some(DateOnly(1905, 1, 1))
+}
 
 let coParents = { Mother = p0.Id; Father = p1.Id }
 
@@ -34,8 +50,17 @@ let peopleAndParents = [
 let p5 = person 5 "Child4" Cube testWilp
 let p6 = person 6 "DaughterInLaw1" Sphere None
 let p7 = person 7 "DaughterInLaw2" Sphere None
-let p8 = person 8 "GrandChild1" Sphere testWilp
-let p9 = person 9 "GrandChild2" Cube testWilp
+
+let p8 = {
+    person 8 "GrandChild1" Sphere testWilp with
+        DateOfBirth = Some(DateOnly(1983, 1, 1))
+}
+
+let p9 = {
+    person 9 "GrandChild2" Cube testWilp with
+        DateOfBirth = Some(DateOnly(1979, 1, 1))
+}
+
 let p10 = person 10 "GrandChild3" Cube testWilp
 
 let extendedFamily =

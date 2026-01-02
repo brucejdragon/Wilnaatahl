@@ -5,6 +5,7 @@ open Swensen.Unquote
 open Wilnaatahl.Model
 open Wilnaatahl.ViewModel
 open Wilnaatahl.ViewModel.LayoutBox
+open Wilnaatahl.Tests
 
 let private vecZeroW = LayoutVector<w>.Zero
 let private vecZeroU = LayoutVector<u>.Zero
@@ -31,7 +32,12 @@ let ``createLeaf creates correct LayoutBox`` () =
     let connectX = 0.5<w>
     let personId = PersonId 42
     let offset = { X = 0.1<w>; Y = 0.2<w>; Z = 0.3<w> }
-    let expected = { Size = size; ConnectX = connectX; Payload = Leaf(personId, offset) }
+
+    let expected = {
+        Size = size
+        ConnectX = connectX
+        Payload = LeafBox(personId, offset)
+    }
 
     let actual = createLeaf size connectX personId offset
     actual =! expected
@@ -42,7 +48,7 @@ let ``createComposite creates correct LayoutBox`` () =
     let connectX = 0.5<w>
 
     let composite = { TopLeftWidth = 0.1<w>; TopRightWidth = 0.2<w>; Followers = [] }
-    let expected = { Size = size; ConnectX = connectX; Payload = Composite composite }
+    let expected = { Size = size; ConnectX = connectX; Payload = CompositeBox composite }
 
     let actual = createComposite size connectX composite
     actual =! expected
@@ -76,26 +82,13 @@ let ``reframe changes LayoutBox units recursively`` () =
             Followers = followers
         }
 
-        { Size = size; ConnectX = 1.0<u>; Payload = Composite composite }
+        { Size = size; ConnectX = 1.0<u>; Payload = CompositeBox composite }
 
     let actual = reframe 2.0<u / w> composite
     actual =! expected
 
 [<Fact>]
 let ``visit visits all boxes and passes correct positions`` () =
-
-    // Exercise visit by calculating the offsets of every person in the tree.
-    let setPositions (initialPosition, rootBox) =
-        let visitLeaf pos personId offset =
-            (personId, pos + offset) |> Seq.singleton
-
-        let visitComposite pos results =
-            results
-            |> Seq.concat
-            |> Seq.map (fun (personId, offset) -> personId, pos + offset)
-
-        rootBox |> visit visitLeaf visitComposite initialPosition
-
     let size = { X = 1.0<w>; Y = 2.0<w>; Z = 3.0<w> }
     let connectX = 0.5<w>
     let offset = { X = 0.1<w>; Y = 0.2<w>; Z = 0.3<w> }
@@ -117,7 +110,7 @@ let ``visit visits all boxes and passes correct positions`` () =
         PersonId 2, { X = 4.1<w>; Y = 5.2<w>; Z = 6.3<w> }
     ]
 
-    let actual = setPositions (vecZeroW, box) |> Seq.toList
+    let actual = TestUtils.setPositions (vecZeroW, box) |> Seq.toList
 
     // Compare as sets (order doesn't matter)
     Set.ofList actual =! Set.ofList expected

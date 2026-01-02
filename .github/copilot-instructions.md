@@ -36,7 +36,7 @@ Wilnaatahl visualizes genealogical relationships of Gitxsan huwilp members. It i
 ### F# Unit Test Requirements
 
 - All public members must have direct test coverage, including edge cases and composite scenarios.
-- Tests must use direct equality assertions (e.g., `x =! y`), not pattern matching or mutation.
+- Tests must use direct equality assertion operators (e.g., `x =! y`, `x <! y`, etc.), not pattern matching or mutation.
 - Avoid pattern matching on union cases or record fields; prefer direct equality checks.
 - Do not use mutation or imperative style; tests should be functional and minimal.
 - Use `[<Fact>]` for single-case tests and `[<Theory>]` for parameterized edge cases.

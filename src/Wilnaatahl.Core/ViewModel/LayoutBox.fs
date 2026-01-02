@@ -66,8 +66,8 @@ type LayoutBox<[<Measure>] 'u> = {
 
 /// Contains the parts of a LayoutBox that vary based on whether it contains other LayoutBoxes or not.
 and LayoutBoxPayload<[<Measure>] 'u> =
-    | Leaf of PersonId * LayoutVector<'u>
-    | Composite of CompositeLayoutBox<'u>
+    | LeafBox of PersonId * LayoutVector<'u>
+    | CompositeBox of CompositeLayoutBox<'u>
 
 /// Defines properties specific to a Composite LayoutBox.
 and CompositeLayoutBox<[<Measure>] 'u> = {
@@ -126,11 +126,11 @@ module LayoutBox =
     let createLeaf size connectX personId offset = {
         Size = size
         ConnectX = connectX
-        Payload = Leaf(personId, offset)
+        Payload = LeafBox(personId, offset)
     }
 
     /// Creates a composite LayoutBox with the given property values.
-    let createComposite size connectX composite = { Size = size; ConnectX = connectX; Payload = Composite composite }
+    let createComposite size connectX composite = { Size = size; ConnectX = connectX; Payload = CompositeBox composite }
 
     /// Changes the units of a LayoutBox. Unlike changing units of scalars, this has a runtime cost because
     /// it must allocate a new box to hold the converted co-ordinates and vectors.
@@ -143,9 +143,9 @@ module LayoutBox =
                 follower |> reframe conversionFactor, offset |> LayoutVector.reframe conversionFactor
 
             match payload with
-            | Leaf(personId, offset) -> Leaf(personId, offset |> LayoutVector.reframe conversionFactor)
-            | Composite composite ->
-                Composite {
+            | LeafBox(personId, offset) -> LeafBox(personId, offset |> LayoutVector.reframe conversionFactor)
+            | CompositeBox composite ->
+                CompositeBox {
                     TopLeftWidth = composite.TopLeftWidth * conversionFactor
                     TopRightWidth = composite.TopRightWidth * conversionFactor
                     Followers = composite.Followers |> List.map reframeFollower
@@ -163,8 +163,8 @@ module LayoutBox =
     let visit visitLeaf visitComposite initialPosition rootBox =
         let rec recurse (box, pos) =
             match box.Payload with
-            | Leaf(personId, offset) -> visitLeaf pos personId offset
-            | Composite composite -> composite.Followers |> Seq.map recurse |> visitComposite pos
+            | LeafBox(personId, offset) -> visitLeaf pos personId offset
+            | CompositeBox composite -> composite.Followers |> Seq.map recurse |> visitComposite pos
 
         recurse (rootBox, initialPosition)
 
@@ -180,12 +180,12 @@ module LayoutBox =
             let calculateNextDistance distanceToTheLeft (lhs, rhs) =
                 let nextDistance =
                     match lhs.Payload, rhs.Payload with
-                    | Leaf _, Leaf _ -> lhs.Size.X
-                    | Composite _, Composite _ -> lhs.Size.X
-                    | Leaf _, Composite composite when composite.TopLeftWidth <= nearZero -> lhs.Size.X
-                    | Composite composite, Leaf _ when composite.TopRightWidth <= nearZero -> lhs.Size.X
-                    | Leaf _, Composite composite -> lhs.Size.X - composite.TopLeftWidth
-                    | Composite composite, Leaf _ -> lhs.Size.X - composite.TopRightWidth
+                    | LeafBox _, LeafBox _ -> lhs.Size.X
+                    | CompositeBox _, CompositeBox _ -> lhs.Size.X
+                    | LeafBox _, CompositeBox composite when composite.TopLeftWidth <= nearZero -> lhs.Size.X
+                    | CompositeBox composite, LeafBox _ when composite.TopRightWidth <= nearZero -> lhs.Size.X
+                    | LeafBox _, CompositeBox composite -> lhs.Size.X - composite.TopLeftWidth
+                    | CompositeBox composite, LeafBox _ -> lhs.Size.X - composite.TopRightWidth
 
                 distanceToTheLeft + nextDistance
 
@@ -228,8 +228,8 @@ module LayoutBox =
             let (leftmostCornerWidth, _), (_, rightmostCornerWidth) =
                 let getCornerWidths box =
                     match box.Payload with
-                    | Leaf _ -> 0.0<_>, 0.0<_>
-                    | Composite composite -> composite.TopLeftWidth, composite.TopRightWidth
+                    | LeafBox _ -> 0.0<_>, 0.0<_>
+                    | CompositeBox composite -> composite.TopLeftWidth, composite.TopRightWidth
 
                 boxes[0] |> getCornerWidths, boxes[boxes.Length - 1] |> getCornerWidths
 
@@ -295,9 +295,9 @@ module LayoutBox =
         // placed alongside existing nested boxes in the lower box.
         let topLeftWidth, topRightWidth =
             match lowerBox.Payload with
-            | Leaf _ -> upperFollowerOffset.X, upperRightOffset
-            | Composite _ when upperBox.Size.Y > nearZero * w2u -> upperFollowerOffset.X, upperRightOffset
-            | Composite composite ->
+            | LeafBox _ -> upperFollowerOffset.X, upperRightOffset
+            | CompositeBox _ when upperBox.Size.Y > nearZero * w2u -> upperFollowerOffset.X, upperRightOffset
+            | CompositeBox composite ->
                 min upperFollowerOffset.X (composite.TopLeftWidth * l2w),
                 min upperRightOffset (composite.TopRightWidth * l2w)
 
