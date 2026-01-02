@@ -49,7 +49,7 @@ module Scene =
     let private defaultXSpacing = 1.95<w>
     let private defaultYSpacing = 2.0<w>
     let private defaultZSpacing = 0.0<w>
-    let private origin = { X = 0.0<w>; Y = 0.0<w>; Z = 0.0<w> }
+    let private origin = LayoutVector<w>.Zero
 
     // Used to sort people for layout by comparing Date of Birth (DoB), or birth order if DoB is missing.
     let private comparePeople person1 person2 =

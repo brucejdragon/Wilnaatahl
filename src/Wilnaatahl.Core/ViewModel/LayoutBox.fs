@@ -10,7 +10,16 @@ type LayoutVector<[<Measure>] 'u> = {
     Z: float<'u>
 } with
 
-    static member inline (+)(lhs, rhs) = { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
+    /// Adds two LayoutVectors together component-wise.
+    static member inline (+)(lhs, rhs) =
+        // MAINTENANCE NOTE: This won't show up in code coverage reports because it's inline, but don't worry about it.
+        { X = lhs.X + rhs.X; Y = lhs.Y + rhs.Y; Z = lhs.Z + rhs.Z }
+
+    static member Zero = {
+        X = LanguagePrimitives.FloatWithMeasure<'u> 0.0
+        Y = LanguagePrimitives.FloatWithMeasure<'u> 0.0
+        Z = LanguagePrimitives.FloatWithMeasure<'u> 0.0
+    }
 
 /// Definies utilities for working with LayoutVectors.
 module LayoutVector =
@@ -43,7 +52,7 @@ type u
 type l
 
 /// Defines a frame of reference to help set the positions of points and other LayoutBoxes in world space.
-type LayoutBox<[<Measure>] 'u> = private {
+type LayoutBox<[<Measure>] 'u> = {
     /// Size of the box in 3 dimensional space.
     Size: LayoutVector<'u>
 
@@ -72,7 +81,7 @@ and CompositeLayoutBox<[<Measure>] 'u> = {
 
     /// Collection of LayoutBoxes that are logically "contained" within this box and follow its origin at
     /// a given offset.
-    Followers: (LayoutBox<'u> * LayoutVector<'u>) seq
+    Followers: (LayoutBox<'u> * LayoutVector<'u>) list
 }
 
 /// Options that control how two boxes are vertically attached.
@@ -139,7 +148,7 @@ module LayoutBox =
                 Composite {
                     TopLeftWidth = composite.TopLeftWidth * conversionFactor
                     TopRightWidth = composite.TopRightWidth * conversionFactor
-                    Followers = composite.Followers |> Seq.map reframeFollower
+                    Followers = composite.Followers |> List.map reframeFollower
                 }
 
         {
@@ -193,32 +202,35 @@ module LayoutBox =
             let connectX =
                 let boxCount = boxes.Length
                 let middle = (boxCount - 1) / 2
-                let distanceToLeft = distancesToTheLeft[middle]
 
                 if boxCount % 2 <> 0 then
-                    distanceToLeft + boxes[middle].ConnectX
+                    distancesToTheLeft[middle] + boxes[middle].ConnectX
                 else
                     let left, right = boxes[middle], boxes[middle + 1]
 
                     // Trust me, it works, I did the math.
-                    (2.0 * distanceToLeft + left.ConnectX + left.Size.X + right.ConnectX) / 2.0
+                    (2.0 * distancesToTheLeft[middle]
+                     + left.ConnectX
+                     + distancesToTheLeft[middle + 1]
+                     + right.ConnectX)
+                    / 2.0
 
-            let followAtDistance i =
-                boxes[i],
-                {
-                    X = distancesToTheLeft[i]
-                    Y = size.Y - boxes[i].Size.Y
-                    Z = 0.0<w>
-                }
-
-            let followers = [ 0 .. boxes.Length - 1 ] |> Seq.map followAtDistance
-
-            let getCornerWidths box =
-                match box.Payload with
-                | Leaf _ -> 0.0<_>, 0.0<_>
-                | Composite composite -> composite.TopLeftWidth, composite.TopRightWidth
+            let followers =
+                [ 0 .. boxes.Length - 1 ]
+                |> List.map (fun i ->
+                    boxes[i],
+                    {
+                        X = distancesToTheLeft[i]
+                        Y = size.Y - boxes[i].Size.Y
+                        Z = 0.0<w>
+                    })
 
             let (leftmostCornerWidth, _), (_, rightmostCornerWidth) =
+                let getCornerWidths box =
+                    match box.Payload with
+                    | Leaf _ -> 0.0<_>, 0.0<_>
+                    | Composite composite -> composite.TopLeftWidth, composite.TopRightWidth
+
                 boxes[0] |> getCornerWidths, boxes[boxes.Length - 1] |> getCornerWidths
 
             createComposite size connectX {
@@ -245,9 +257,15 @@ module LayoutBox =
         let adjustedLowerBoxWidth = lowerOffsetX + lowerBox.Size.X * l2w
         let adjustedHigherBoxWidth = upperOffsetX + upperBox.Size.X * u2w
 
+        let effectiveUpperHeight =
+            if upperBox.Size.Y > nearZero * w2u then
+                upperBox.Size.Y * u2w
+            else
+                0.0<w>
+
         let size = {
             X = max adjustedLowerBoxWidth adjustedHigherBoxWidth
-            Y = upperBox.Size.Y * u2w + lowerBox.Size.Y * l2w
+            Y = effectiveUpperHeight + lowerBox.Size.Y * l2w
             Z = max (upperBox.Size.Z * u2w) (lowerBox.Size.Z * l2w)
         }
 
@@ -278,7 +296,7 @@ module LayoutBox =
         let topLeftWidth, topRightWidth =
             match lowerBox.Payload with
             | Leaf _ -> upperFollowerOffset.X, upperRightOffset
-            | Composite _ when upperBox.Size.Y >= nearZero * w2u -> upperFollowerOffset.X, upperRightOffset
+            | Composite _ when upperBox.Size.Y > nearZero * w2u -> upperFollowerOffset.X, upperRightOffset
             | Composite composite ->
                 min upperFollowerOffset.X (composite.TopLeftWidth * l2w),
                 min upperRightOffset (composite.TopRightWidth * l2w)

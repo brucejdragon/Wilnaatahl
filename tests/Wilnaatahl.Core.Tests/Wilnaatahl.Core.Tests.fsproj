@@ -11,6 +11,7 @@
     <Compile Include="ViewModel/UndoableStateTests.fs" />
     <Compile Include="ViewModel/NodeStateTests.fs" />
     <Compile Include="ViewModel/ViewModelTests.fs" />
+    <Compile Include="ViewModel/LayoutBoxTests.fs" />
     <Compile Include="ViewModel/SceneTests.fs" />
   </ItemGroup>
 
