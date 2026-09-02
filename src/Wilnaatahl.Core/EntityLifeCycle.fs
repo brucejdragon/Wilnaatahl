@@ -11,6 +11,7 @@ open Wilnaatahl.Systems.FileCommands
 open Wilnaatahl.Systems.Selection
 open Wilnaatahl.Systems.UndoRedo
 open Wilnaatahl.Systems.ViewMode
+open Wilnaatahl.Traits.Intents
 open Wilnaatahl.Traits.ViewTraits
 
 /// Called when entering the visualizer to create entities that represent the scene controls.
@@ -20,6 +21,9 @@ let spawnControls (world: IWorld) =
     let initialSortOrder = 0
 
     world.AddWith CurrentLocale En
+
+    // The background is the single click target outside nodes and controls.
+    world.Spawn(Background.Tag(), EmitsIntent.Val [ ClearSelection ]) |> ignore
 
     (initialSortOrder, world)
     |> spawnUndoRedoControls
