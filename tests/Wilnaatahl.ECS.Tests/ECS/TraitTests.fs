@@ -75,3 +75,51 @@ type TraitTests() =
         first |> get Ref |> Option.iter (fun list -> list.Add 7)
 
         second |> get Ref |> Option.map List.ofSeq =! Some []
+
+    [<Fact>]
+    member _.``Spawning a refTrait with a value still calls its factory once``() =
+        let mutable factoryCalls = 0
+
+        let Ref =
+            refTrait (fun () ->
+                factoryCalls <- factoryCalls + 1
+                ResizeArray [ 1 ])
+
+        let suppliedValue = ResizeArray [ 7 ]
+        let entity = world.Spawn [| Ref.Val suppliedValue |]
+        suppliedValue.Add 8
+
+        factoryCalls =! 1
+        entity |> get Ref |> Option.map List.ofSeq =! Some [ 7; 8 ]
+
+    [<Fact>]
+    member _.``Spawning a refTrait with null uses the factory value``() =
+        let mutable factoryCalls = 0
+
+        let Ref =
+            refTrait (fun () ->
+                factoryCalls <- factoryCalls + 1
+                ResizeArray [ 42 ])
+
+        let entity = world.Spawn [| Ref.Val null |]
+
+        factoryCalls =! 1
+        entity |> get Ref |> Option.map List.ofSeq =! Some [ 42 ]
+
+    [<Fact>]
+    member _.``Spawning duplicate refTrait values calls its factory only for the first value``() =
+        let mutable factoryCalls = 0
+
+        let Ref =
+            refTrait (fun () ->
+                factoryCalls <- factoryCalls + 1
+                ResizeArray [ 1 ])
+
+        let firstSuppliedValue = ResizeArray [ 7 ]
+        let secondSuppliedValue = ResizeArray [ 9 ]
+
+        let entity =
+            world.Spawn [| Ref.Val firstSuppliedValue; Ref.Val secondSuppliedValue |]
+
+        factoryCalls =! 1
+        entity |> get Ref |> Option.map List.ofSeq =! Some [ 7 ]

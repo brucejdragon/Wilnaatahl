@@ -694,11 +694,19 @@ module private World =
             // Since we don't know the type of the value, we need to access the store directly.
             let store = world |> getStore someTrait
             let testTrait = someTrait :?> ITestUntypedValueTrait
-            let mutableValue = testTrait.UnfreezeUntypedValue value
 
-            if store.TryAdd(entityId, Some mutableValue) then
-                TrackerRegistry.notifyAdded someTrait entity (lazy (world |> entityTraitSnapshot entity))
-                TrackerRegistry.cancelRemoved someTrait entity
+            if not (store.ContainsKey entityId) then
+                let defaultMutableValue = testTrait.BuildDefaultMutableValue()
+
+                let mutableValue =
+                    if isNull value then
+                        defaultMutableValue
+                    else
+                        testTrait.UnfreezeUntypedValue value
+
+                if store.TryAdd(entityId, Some mutableValue) then
+                    TrackerRegistry.notifyAdded someTrait entity (lazy (world |> entityTraitSnapshot entity))
+                    TrackerRegistry.cancelRemoved someTrait entity
 
         let addRel (relation: IRelation, target) =
             world |> addRelation relation target entity
